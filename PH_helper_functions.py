@@ -116,7 +116,7 @@ class constraints:
 def run_simulation(radius, tube_length, number_sections, path_to_images,input_filename, demo = False, min_pressure = 0, max_pressure = 0):
     N_sec = number_sections
     N_nodes = number_sections
-    simulation_time = 4
+    simulation_time = 2
     sample_rate = 1e-03
     path_input_at_inlet = input_filename
     cons = constraints(path_input_at_inlet, 0)
@@ -190,8 +190,8 @@ class GeometryAndInput:
     def __init__(self):
         self.filename = ''
         self.fig = plt.figure()
-        self.ax = self.fig .add_subplot(111)
-        self.fig.subplots_adjust(bottom=0.2, top=0.45)
+        self.ax = self.fig.add_subplot(111,projection = '3d' )
+        self.fig.subplots_adjust(bottom=-0.0, top=0.6)
         self.ax_nx = self.fig .add_axes([0.2, 0.84, 0.2, 0.05])
         self.ax_nx.spines['top'].set_visible(True)
         self.ax_nx.spines['right'].set_visible(True)
@@ -210,8 +210,8 @@ class GeometryAndInput:
         self.ax_w = self.fig .add_axes([0.2, 0.54, 0.2, 0.05])
         self.ax_w.spines['top'].set_visible(True)
         self.ax_w.spines['right'].set_visible(True)
-        self.ax_start_button = self.fig.add_axes([0.6, 0.48, 0.2, 0.05])
-        self.ax_load_button = self.fig.add_axes([0.6, 0.84, 0.2, 0.05])
+        self.ax_start_button = self.fig.add_axes([0.6, 0.7, 0.2, 0.05])
+        self.ax_load_button = self.fig.add_axes([0.6, 0.84, 0.3, 0.05])
 
         self.number_sections = Slider(ax=self.ax_nx, label='#sections ', valmin=10, valmax=200, valinit=35,
                                  valfmt='%d', facecolor='#cc7000', valstep=1)
@@ -230,12 +230,11 @@ class GeometryAndInput:
 
         self.x = np.linspace(-self.tube_length.val / 2, self.tube_length.val / 2, self.number_sections.val)
 
-        self.vessel = self.tube(self.tube_base_radius.val, self.tube_length.val, self.number_sections.val)
-        self.f_d1, = self.ax.plot(self.x, self.vessel, linewidth=2.5, color='k')
-        self.f_d2, = self.ax.plot(self.x, -self.vessel, linewidth=2.5, color='k')
-        self.f_d1.axes.set_ylim(-1.2 * 5, 1.2 * 5)
-        self.f_d2.axes.set_ylim(-1.2 * 5, 1.2 * 5)
-        self.f_d2.axes.set_xlim(-1.2 * 5, 1.2 * 5)
+        self.radius = np.ones(self.number_sections.val)*self.tube_base_radius.val
+        self.data_for_structure_along_z()
+        self.ax.plot_surface(self.geometry[0], self.geometry[1], self.geometry[2],alpha=1)
+        self.ax.set_box_aspect((np.ptp(self.geometry[0]), np.ptp(self.geometry[1]), np.ptp(self.geometry[2])))
+        self.ax.set_xlabel('tube length [cm]')
         self.number_sections.on_changed(self.stenosis)
         self.tube_base_radius.on_changed(self.stenosis)
         self.tube_length.on_changed(self.stenosis)
@@ -264,8 +263,18 @@ class GeometryAndInput:
         self.tube_length = self.tube_length.val
         self.number_sections = self.number_sections.val
         self.filename = self.filename
-        plt.close()
+        plt.close('all')
         return
+
+    def data_for_structure_along_z(self):
+        z = np.linspace(0, self.tube_length.val, self.number_sections.val)
+        theta = np.linspace(0, 2 * np.pi, self.number_sections.val)
+        theta_grid, z_grid = np.meshgrid(theta, z)
+        varied_radius = self.radius
+        x_grid = (np.cos(theta_grid).T * varied_radius).T
+        y_grid = (np.sin(theta_grid).T * varied_radius).T
+        self.geometry = [z_grid, x_grid, y_grid]
+        stop = True
 
     def stenosis(self, val):
         self.stenosis_position.valmin = -self.tube_length.val/2
@@ -273,12 +282,14 @@ class GeometryAndInput:
         self.stenosis_expansion.valmax = self.tube_length.val
         xs = np.linspace(-self.tube_length.val / 2, self.tube_length.val / 2, int(self.number_sections.val))
         absolute_stenosis_depth = self.tube_base_radius.val * self.stenosis_radius_proportion.val
-        vessel = self.tube_base_radius.val * np.ones(len(xs)) - absolute_stenosis_depth * np.exp(
+        self.radius = self.tube_base_radius.val * np.ones(len(xs)) - absolute_stenosis_depth * np.exp(
             -0.5 * (xs - self.stenosis_position.val) ** 2 / self.stenosis_expansion.val ** 2)
-        self.f_d1.set_data(xs, vessel)
-        self.f_d2.set_data(xs, -vessel)
+        self.data_for_structure_along_z()
+        self.ax.cla()
+        self.ax.plot_surface(self.geometry[0], self.geometry[1], self.geometry[2])
+        self.ax.set_box_aspect((np.ptp(self.geometry[0]), np.ptp(self.geometry[1]), np.ptp(self.geometry[2])))
         self.fig.canvas.draw_idle()
-        return vessel
+        return self.radius
 
 class VisualizeResults:
     def __init__(self,pdic):
