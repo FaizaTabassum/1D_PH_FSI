@@ -27,8 +27,9 @@ import matplotlib
 
 
 if __name__ == '__main__':
+    path_to_image =r'C:\Users\Faiza\Desktop\1D_PH_FSI\cardiac_cycle_images'
     loadrun = func.GeometryAndInput()
-    pdic, internal_information_of_model, results_integration = func.run_simulation(loadrun.tube_base_radius, loadrun.tube_length, int(loadrun.number_sections), input_filename=loadrun.filename)
+    pdic, internal_information_of_model, results_integration = func.run_simulation(loadrun.tube_base_radius, loadrun.tube_length, int(loadrun.number_sections), path_to_image,input_filename=loadrun.filename)
     simulation_class = func.VisualizeResults(pdic)
     for i in range(0, len(internal_information_of_model.t_evaluation), 1):
         print(i)
