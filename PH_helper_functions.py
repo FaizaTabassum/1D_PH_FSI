@@ -113,10 +113,10 @@ class constraints:
 
 
 @profile
-def run_simulation(radius, tube_length, number_sections, path_to_images,input_filename, demo = False, min_pressure = 0, max_pressure = 0):
+def run_simulation(radius, tube_length, number_sections, path_to_images,input_filename, demo = False, simulation_time=1, min_pressure = 0, max_pressure = 0):
     N_sec = number_sections
     N_nodes = number_sections
-    simulation_time = 2
+    simulation_time = simulation_time
     sample_rate = 1e-03
     path_input_at_inlet = input_filename
     cons = constraints(path_input_at_inlet, 0)
@@ -159,7 +159,7 @@ def run_simulation(radius, tube_length, number_sections, path_to_images,input_fi
 
 
 
-    PHFSI = func.Model_Flow_Efficient(parameter, demo = demo) #this is for flow, if you want to test Pressure, you need to substitute Flow by Pressure
+    PHFSI = func.OneD_PHM(parameter, demo = demo) #this is for flow, if you want to test Pressure, you need to substitute Flow by Pressure
     T = [0, simulation_time]
     x_init = np.concatenate((np.zeros(3*N_sec), parameter['fluid_density']*np.ones(N_nodes))).reshape(-1,)
     sol = solve_ivp(
@@ -274,7 +274,6 @@ class GeometryAndInput:
         x_grid = (np.cos(theta_grid).T * varied_radius).T
         y_grid = (np.sin(theta_grid).T * varied_radius).T
         self.geometry = [z_grid, x_grid, y_grid]
-        stop = True
 
     def stenosis(self, val):
         self.stenosis_position.valmin = -self.tube_length.val/2
@@ -372,6 +371,7 @@ class VisualizeResults:
 
 
     def on_running(self, t, pmatrix, heartimage):
+        self.ax2.cla()
         self.pressure_in_tube = self.ax2.plot_surface(self.geometry[0], self.geometry[1], self.geometry[2], facecolors=cm.Reds(self.norm(pmatrix)),alpha=1, vmin = self.min_pressure, vmax = self.max_pressure)
         self.heart.set_data(heartimage)
         self.ax1.scatter(t, self.input_value(t), color = "b")
@@ -411,7 +411,7 @@ def calculate_pressure_matrix(tube_radius,pressure_along_z, number_sections):
     return p_matrix
 
 
-class Model_Flow_Efficient:
+class OneD_PHM:
     def __init__(self,pdic, demo = False, path_to_image = ''):
         self.radius = pdic['radius']
         self.am1_0_vol = 1
