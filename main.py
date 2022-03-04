@@ -34,3 +34,4 @@ if __name__ == '__main__':
     simulation_class = func.VisualizeResults(pdic)
     for i in range(0, len(internal_information_of_model.t_evaluation), 1):
         simulation_class.update_pressure_plot(internal_information_of_model.t_evaluation[i], pdic['interpolated_data'](internal_information_of_model.t_evaluation[i]))
+    plt.show()
