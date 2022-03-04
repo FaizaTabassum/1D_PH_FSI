@@ -221,7 +221,7 @@ class GeometryAndInput:
                              valinit=5, valfmt='%1.1f cm', facecolor='#cc7000')
         self.stenosis_position = Slider(ax=self.ax_s, label='stenosis position ', valmin=-5, valmax=5,
                                    valinit=0, valfmt=' %1.1f cm', facecolor='#cc7000')
-        self.stenosis_radius_proportion = Slider(ax=self.ax_d, label='stenosis gradient ', valmin=0, valmax=1,
+        self.stenosis_radius_proportion = Slider(ax=self.ax_d, label='stenosis radius proportion ', valmin=0, valmax=0.99,
                                             valinit=0, valfmt=' %1.1f cm', facecolor='#cc7000')
         self.stenosis_expansion = Slider(ax=self.ax_w, label='stenosis spread ', valmin=0.000001, valmax=5,
                                     valinit=1, valfmt=' %1.1f cm', facecolor='#cc7000')
