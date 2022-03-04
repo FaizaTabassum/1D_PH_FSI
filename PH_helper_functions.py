@@ -34,7 +34,7 @@ class constraints:
 
     @property
     def inp_const(self):
-        inp_max = 120 * 10**-6
+        inp_max = 100 * 10**-6
         tinp = 3*10**-3
         return lambda t: (inp_max / 2) * (1 - np.cos(np.pi * t / tinp)) if t < tinp else inp_max
 
@@ -113,7 +113,7 @@ class constraints:
 
 
 @profile
-def run_simulation(radius, tube_length, number_sections, path_to_images,input_filename, demo = False, simulation_time=1, min_pressure = 0, max_pressure = 0):
+def run_simulation(radius, tube_length, number_sections, path_to_images,input_filename, demo = False, simulation_time=1, min_pressure = 0, max_pressure = 0, scale = 1, pressure_title=''):
     N_sec = number_sections
     N_nodes = number_sections
     simulation_time = simulation_time
@@ -154,7 +154,9 @@ def run_simulation(radius, tube_length, number_sections, path_to_images,input_fi
         'stiffness_k3': 1*10**9,
         'requested_data_over_tube': ['fluid_velocity', 'dynamic_pressure', 'static_pressure'],
         'requested_data_at_boundaries': ['pressure', 'flow'],
-        'path_to_image': path_to_images
+        'path_to_image': path_to_images,
+        'scale': scale,
+        'pressure_title':pressure_title
     }
 
 
@@ -179,8 +181,8 @@ def run_simulation(radius, tube_length, number_sections, path_to_images,input_fi
         method='BDF',
         vectorized=False
     )
-    parameter['min_pressure'] = np.min(PHFSI.total_pressure[50:, 0])
-    parameter['max_pressure'] = np.max(PHFSI.total_pressure[50:, 0])
+    parameter['min_pressure'] = np.min(PHFSI.total_pressure[:, 0])
+    parameter['max_pressure'] = np.max(PHFSI.total_pressure[:, 0])
     total_pressure = PHFSI.total_pressure
     step_time = np.reshape(PHFSI.step_time, (-1,))
     parameter['interpolated_data'] = interp1d(step_time, total_pressure, axis=0)
@@ -292,6 +294,7 @@ class GeometryAndInput:
 
 class VisualizeResults:
     def __init__(self,pdic):
+            self.pressure_title=pdic['pressure_title']
             self.path_to_heart_images = pdic['path_to_image']
             self.heart_image_filenames = self.get_image_file_names()
             self.number_of_image_frames = len(self.heart_image_filenames)
@@ -306,8 +309,9 @@ class VisualizeResults:
             self.t_evaluation = pdic['t_evaluation']
             self.input_shape = np.array([pdic['inp_entrance'](t) for t in pdic['t_evaluation']])
             self.input_value =pdic['inp_entrance']
-            self.min_pressure = pdic['min_pressure']*0.00750062
-            self.max_pressure = pdic['max_pressure']*0.00750062
+            self.scale = pdic['scale']
+            self.min_pressure = pdic['min_pressure']*pdic['scale']
+            self.max_pressure = pdic['max_pressure']*pdic['scale']
             self.crop_x_start = 800
             self.crop_x_end = 2100
             self.crop_y_start = 50
@@ -355,7 +359,7 @@ class VisualizeResults:
         m = cm.ScalarMappable(cmap=cm.Reds, norm=self.norm)
         m.set_array([])
         clb = plt.colorbar(m, location = 'bottom', orientation = 'horizontal')
-        clb.set_label('pressure [mmgH]', labelpad=-40, y=1.05, rotation=0)
+        clb.set_label(self.pressure_title, labelpad=-40, y=1.05, rotation=0)
         self.ax1.set_box_aspect(1)
         self.ax2.set_box_aspect((np.ptp(self.geometry[0]), np.ptp(self.geometry[1]), np.ptp(self.geometry[2])))
         self.ax2.axes.get_yaxis().set_visible(False)
@@ -390,7 +394,7 @@ class VisualizeResults:
                 self.heart_image = cv2.imread(self.heart_image_filenames[self.frame_count])[self.crop_y_start:self.crop_y_end, self.crop_x_start:self.crop_x_end]
 
             theta = np.linspace(0, 2*np.pi, self.N_sec)
-            theta_grid, self.pressure_image = np.meshgrid(theta, np.append(total_pressure*0.00750062, 0))
+            theta_grid, self.pressure_image = np.meshgrid(theta, np.append(total_pressure*self.scale, 0))
 
             self.on_running(t, self.pressure_image, self.heart_image)
 

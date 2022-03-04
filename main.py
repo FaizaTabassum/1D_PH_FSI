@@ -29,8 +29,10 @@ import matplotlib
 if __name__ == '__main__':
     path_to_image =r'C:\Users\Faiza\Desktop\1D_PH_FSI\cardiac_cycle_images'
     simulation_time=3
+    scale = 0.00750062 #1 for Pa or 0.00750062 if you want to plot pressure in mmHg
+    pressure_title="pressure in [mmgH]" #change title accordingly to scale
     loadrun = func.GeometryAndInput()
-    pdic, internal_information_of_model, results_integration = func.run_simulation(loadrun.tube_base_radius, loadrun.tube_length, int(loadrun.number_sections), path_to_image,simulation_time = simulation_time,input_filename=loadrun.filename)
+    pdic, internal_information_of_model, results_integration = func.run_simulation(loadrun.tube_base_radius, loadrun.tube_length, int(loadrun.number_sections), path_to_image,simulation_time = simulation_time,input_filename=loadrun.filename, scale = scale, pressure_title=pressure_title)
     simulation_class = func.VisualizeResults(pdic)
     for i in range(0, len(internal_information_of_model.t_evaluation), 1):
         simulation_class.update_pressure_plot(internal_information_of_model.t_evaluation[i], pdic['interpolated_data'](internal_information_of_model.t_evaluation[i]))
