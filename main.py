@@ -31,9 +31,9 @@ if __name__ == '__main__':
     simulation_time=3
     scale = 0.00750062 #1 for Pa or 0.00750062 if you want to plot pressure in mmHg
     pressure_title="pressure in [mmgH]" #change title accordingly to scale
-    loadrun = func.GeometryAndInput()
-    pdic, internal_information_of_model, results_integration = func.run_simulation(loadrun.tube_base_radius, loadrun.tube_length, int(loadrun.number_sections), path_to_image,simulation_time = simulation_time,input_filename=loadrun.filename, scale = scale, pressure_title=pressure_title)
-    simulation_class = func.VisualizeResults(pdic)
+    input_definition = func.InputDefinitions()
+    parameter_dic, internal_information_of_model, results_integration = func.run_simulation(input_definition.tube_base_radius, input_definition.tube_length, int(input_definition.number_sections), path_to_image,simulation_time = simulation_time,path_to_input=input_definition.flow_profile_path,path_to_save=input_definition.save_data_path, scale = scale, pressure_title=pressure_title)
+    simulation_class = func.VisualizingResults(parameter_dic)
     for i in range(0, len(internal_information_of_model.t_evaluation), 1):
-        simulation_class.update_pressure_plot(internal_information_of_model.t_evaluation[i], pdic['interpolated_data'](internal_information_of_model.t_evaluation[i]))
+        simulation_class.update_pressure_plot(internal_information_of_model.t_evaluation[i])
     plt.show()

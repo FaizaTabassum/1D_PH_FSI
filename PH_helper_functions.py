@@ -24,9 +24,10 @@ import cv2
 from matplotlib import cm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib
+import pickle
 
 
-class constraints:
+class BoundaryDefinitions:
     def __init__(self, path_load, out_max):
         self.path_load = path_load
         self.out_max = out_max
@@ -113,13 +114,13 @@ class constraints:
 
 
 @profile
-def run_simulation(radius, tube_length, number_sections, path_to_images,input_filename, demo = False, simulation_time=1, min_pressure = 0, max_pressure = 0, scale = 1, pressure_title=''):
+def run_simulation(radius, tube_length, number_sections, path_to_images,path_to_input, path_to_save, demo = False, simulation_time=1, min_pressure = 0, max_pressure = 0, scale = 1, pressure_title=''):
     N_sec = number_sections
     N_nodes = number_sections
     simulation_time = simulation_time
     sample_rate = 1e-03
-    path_input_at_inlet = input_filename
-    cons = constraints(path_input_at_inlet, 0)
+    path_input_at_inlet = path_to_input
+    boundary_definition = BoundaryDefinitions(path_input_at_inlet, 0)
 
     t_evaluation = np.ndarray.tolist(np.arange(0, simulation_time, sample_rate))
 
@@ -130,8 +131,8 @@ def run_simulation(radius, tube_length, number_sections, path_to_images,input_fi
         'geo_factor': 2.6,
         'vis_factor': 16,
         'vis_dissipation': True,
-        'inp_entrance': cons.repeat_input(simulation_time),
-        'inp_exit': cons.out_const,
+        'inp_entrance': boundary_definition.repeat_input(simulation_time),
+        'inp_exit': boundary_definition.out_const,
         'structure_length': tube_length * 10 ** -2,
         'radius': radius*10 ** -2,
         'wall_thickness': 3 * 10 ** -4,
@@ -159,9 +160,7 @@ def run_simulation(radius, tube_length, number_sections, path_to_images,input_fi
         'pressure_title':pressure_title
     }
 
-
-
-    PHFSI = func.OneD_PHM(parameter, demo = demo) #this is for flow, if you want to test Pressure, you need to substitute Flow by Pressure
+    PHFSI = OneD_PHM(parameter, demo = demo) #this is for flow, if you want to test Pressure, you need to substitute Flow by Pressure
     T = [0, simulation_time]
     x_init = np.concatenate((np.zeros(3*N_sec), parameter['fluid_density']*np.ones(N_nodes))).reshape(-1,)
     sol = solve_ivp(
@@ -186,9 +185,12 @@ def run_simulation(radius, tube_length, number_sections, path_to_images,input_fi
     total_pressure = PHFSI.total_pressure
     step_time = np.reshape(PHFSI.step_time, (-1,))
     parameter['interpolated_data'] = interp1d(step_time, total_pressure, axis=0)
+    save_data_dic = {'radius': parameter['radius'], 'tube_length': parameter['structure_length'], 'number_sections': number_sections}
+    with open(path_to_save+"\output.npy", 'wb') as f:
+        pickle.dump(save_data_dic, f)
     return parameter, PHFSI, sol
 
-class GeometryAndInput:
+class InputDefinitions:
     def __init__(self):
         self.filename = ''
         self.fig = plt.figure()
@@ -212,8 +214,9 @@ class GeometryAndInput:
         self.ax_w = self.fig .add_axes([0.2, 0.54, 0.2, 0.05])
         self.ax_w.spines['top'].set_visible(True)
         self.ax_w.spines['right'].set_visible(True)
-        self.ax_start_button = self.fig.add_axes([0.6, 0.7, 0.2, 0.05])
-        self.ax_load_button = self.fig.add_axes([0.6, 0.84, 0.3, 0.05])
+        self.ax_start_button = self.fig.add_axes([0.6, 0.6, 0.2, 0.05])
+        self.ax_save_button = self.fig.add_axes([0.6, 0.7, 0.3, 0.05])
+        self.ax_load_button = self.fig.add_axes([0.6, 0.8, 0.3, 0.05])
 
         self.number_sections = Slider(ax=self.ax_nx, label='#sections ', valmin=10, valmax=200, valinit=35,
                                  valfmt='%d', facecolor='#cc7000', valstep=1)
@@ -229,6 +232,7 @@ class GeometryAndInput:
                                     valinit=1, valfmt=' %1.1f cm', facecolor='#cc7000')
         self.play_button = Button(ax=self.ax_start_button, label="Play", color='gray')
         self.load_button = Button(ax=self.ax_load_button, label="Load Flow Profile [in cgs]", color='gray')
+        self.save_button = Button(ax=self.ax_save_button, label="Path Save Data", color='gray')
 
         self.x = np.linspace(-self.tube_length.val / 2, self.tube_length.val / 2, self.number_sections.val)
 
@@ -248,6 +252,7 @@ class GeometryAndInput:
         self.stenosis_expansion.on_changed(self.stenosis)
         self.play_button.on_clicked(self.start_program)
         self.load_button.on_clicked(self.load_flow_input_file)
+        self.save_button.on_clicked(self.save_data)
         plt.show()
 
     def tube(self, r, l, N):
@@ -255,7 +260,10 @@ class GeometryAndInput:
         return 0 * x + r
 
     def load_flow_input_file(self, val):
-        self.filename = fd.askopenfilename()
+        self.flow_profile_path = fd.askopenfilename()
+
+    def save_data(self, val):
+        self.save_data_path = fd.askdirectory()
 
     def handle_close(evt):
         print('Closed Figure!')
@@ -264,7 +272,8 @@ class GeometryAndInput:
         self.tube_base_radius = self.stenosis(2)
         self.tube_length = self.tube_length.val
         self.number_sections = self.number_sections.val
-        self.filename = self.filename
+        self.flow_profile_path = self.flow_profile_path
+        self.save_data_path = self.save_data_path
         plt.close('all')
         return
 
@@ -292,8 +301,9 @@ class GeometryAndInput:
         self.fig.canvas.draw_idle()
         return self.radius
 
-class VisualizeResults:
+class VisualizingResults:
     def __init__(self,pdic):
+            self.total_pressure = pdic['interpolated_data']
             self.pressure_title=pdic['pressure_title']
             self.path_to_heart_images = pdic['path_to_image']
             self.heart_image_filenames = self.get_image_file_names()
@@ -307,6 +317,7 @@ class VisualizeResults:
             self.structure_length = pdic['structure_length']
             self.section_length = self.structure_length/self.N_sec
             self.t_evaluation = pdic['t_evaluation']
+            self.simulation_time = self.t_evaluation[-1]
             self.input_shape = np.array([pdic['inp_entrance'](t) for t in pdic['t_evaluation']])
             self.input_value =pdic['inp_entrance']
             self.scale = pdic['scale']
@@ -320,6 +331,8 @@ class VisualizeResults:
             self.initialize_demo_figure()
 
 
+
+
     def data_for_structure_along_z(self):
         z = np.linspace(0, self.structure_length*10**2, self.N_sec)
         theta = np.linspace(0, 2 * np.pi, self.N_sec)
@@ -327,7 +340,7 @@ class VisualizeResults:
         varied_radius = self.radius*10**2
         x_grid = (np.cos(theta_grid).T * varied_radius).T
         y_grid = (np.sin(theta_grid).T * varied_radius).T
-        return z_grid, x_grid, y_grid
+        return x_grid, y_grid, -z_grid
 
     def get_image_file_names(self):
         file_list = os.listdir(self.path_to_heart_images)
@@ -344,7 +357,11 @@ class VisualizeResults:
         self.ax0 = self.figure.add_subplot(1, 3, 1)
         self.ax1 = self.figure.add_subplot(1, 3, 2)
         self.ax2 = self.figure.add_subplot(1, 3, 3, projection = '3d')
-        # self.figure.subplots_adjust(wspace=0.5)
+        self.ax_time = self.figure.add_axes([0.2, 0.84, 0.5, 0.05])
+        self.ax_time.spines['top'].set_visible(True)
+        self.ax_time.spines['right'].set_visible(True)
+        self.time_step = Slider(ax=self.ax_time, label='time ', valmin=0, valmax=self.simulation_time, valinit=0,valfmt=' %1.1f cm', facecolor='#cc7000')
+        self.time_step.on_changed(self.set_time)
         self.pressure_curve, = self.ax1.plot([], [], color = "red")
 
         if self.path_to_heart_images == '':
@@ -358,7 +375,7 @@ class VisualizeResults:
         self.pressure_in_tube = self.ax2.plot_surface(self.geometry[0], self.geometry[1], self.geometry[2], facecolors=cm.Reds(self.norm(pressure_grid)),alpha=1, vmin = self.min_pressure, vmax = self.max_pressure)
         m = cm.ScalarMappable(cmap=cm.Reds, norm=self.norm)
         m.set_array([])
-        clb = plt.colorbar(m, location = 'bottom', orientation = 'horizontal')
+        clb = self.figure.colorbar(m, ax = self.ax2, location = 'bottom', orientation = 'horizontal')
         clb.set_label(self.pressure_title, labelpad=-40, y=1.05, rotation=0)
         self.ax1.set_box_aspect(1)
         self.ax2.set_box_aspect((np.ptp(self.geometry[0]), np.ptp(self.geometry[1]), np.ptp(self.geometry[2])))
@@ -372,18 +389,33 @@ class VisualizeResults:
         self.ax1.set_xlabel('time [s]')
         self.figure.subplots_adjust(wspace=0.5)
         plt.draw()
+    def set_time(self,val):
+        self.actual_time = self.time_step.val
+        self.update_pressure_plot_()
 
 
-    def on_running(self, t, pmatrix, heartimage):
+
+
+    def update_pressure_plot_(self):
+            theta = np.linspace(0, 2*np.pi, self.N_sec)
+            theta_grid, self.pressure_image = np.meshgrid(theta, np.append(self.total_pressure(self.actual_time)*self.scale, 0))
+            self.on_running_(self.actual_time, self.pressure_image, self.heart_image)
+
+    def on_running_(self, t, pmatrix, heartimage):
         self.ax2.cla()
-        self.pressure_in_tube = self.ax2.plot_surface(self.geometry[0], self.geometry[1], self.geometry[2], facecolors=cm.Reds(self.norm(pmatrix)),alpha=1, vmin = self.min_pressure, vmax = self.max_pressure)
+        self.pressure_in_tube = self.ax2.plot_surface(self.geometry[0], self.geometry[1], self.geometry[2],
+                                                      facecolors=cm.Reds(self.norm(pmatrix)), alpha=1,
+                                                      vmin=self.min_pressure, vmax=self.max_pressure)
         self.heart.set_data(heartimage)
-        self.ax1.scatter(t, self.input_value(t), color = "b")
+        self.ax1.cla()
+        self.ax1.plot(self.t_evaluation, self.input_shape)
+        self.ax1.scatter(t, self.input_value(t), color="b")
         self.figure.canvas.draw_idle()
         plt.pause(0.1)
 
-    def update_pressure_plot(self, t, total_pressure):
+    def update_pressure_plot(self, t):
         if t in self.t_sim[1:]:
+            self.actual_time = t
             if self.frame_count < len(self.heart_image_filenames)-1:
                 self.frame_count += 1
                 self.heart_image = cv2.imread(self.heart_image_filenames[self.frame_count])[self.crop_y_start:self.crop_y_end, self.crop_x_start:self.crop_x_end]
@@ -394,26 +426,19 @@ class VisualizeResults:
                 self.heart_image = cv2.imread(self.heart_image_filenames[self.frame_count])[self.crop_y_start:self.crop_y_end, self.crop_x_start:self.crop_x_end]
 
             theta = np.linspace(0, 2*np.pi, self.N_sec)
-            theta_grid, self.pressure_image = np.meshgrid(theta, np.append(total_pressure*self.scale, 0))
+            theta_grid, self.pressure_image = np.meshgrid(theta, np.append(self.total_pressure(t)*self.scale, 0))
 
-            self.on_running(t, self.pressure_image, self.heart_image)
+            self.on_running(self.actual_time, self.pressure_image, self.heart_image)
 
-def calculate_pressure_matrix(tube_radius,pressure_along_z, number_sections):
-    max_radius = np.max(tube_radius)
-    for i in range(0, len(tube_radius), 1):
-        if i == 0:
-            new_vec = np.ones(int((tube_radius[i]/max_radius)*number_sections))*pressure_along_z[i]
-            number_add_zeros= int(number_sections-len(new_vec))
-            p_vec = np.hstack((np.nan*np.ones(number_add_zeros), new_vec))
-        else:
-            new_vec = np.ones(int((tube_radius[i] / max_radius) * number_sections)) * pressure_along_z[i]
-            number_add_zeros = int(number_sections - len(new_vec))
-            p_vec = np.vstack((p_vec, np.hstack((np.nan*np.ones(number_add_zeros), new_vec))))
-    p_vec =p_vec.T
-    p_vec_flip = np.flip(p_vec, axis=0)
-    p_matrix = np.vstack((p_vec, p_vec_flip))
-    return p_matrix
-
+    def on_running(self, t, pmatrix, heartimage):
+        self.ax2.cla()
+        self.pressure_in_tube = self.ax2.plot_surface(self.geometry[0], self.geometry[1], self.geometry[2],
+                                                      facecolors=cm.Reds(self.norm(pmatrix)), alpha=1,
+                                                      vmin=self.min_pressure, vmax=self.max_pressure)
+        self.heart.set_data(heartimage)
+        self.ax1.scatter(t, self.input_value(t), color="b")
+        self.figure.canvas.draw_idle()
+        plt.pause(0.1)
 
 class OneD_PHM:
     def __init__(self,pdic, demo = False, path_to_image = ''):
