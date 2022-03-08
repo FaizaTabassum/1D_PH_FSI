@@ -185,9 +185,7 @@ def run_simulation(radius, tube_length, number_sections, path_to_images,path_to_
     total_pressure = PHFSI.total_pressure
     step_time = np.reshape(PHFSI.step_time, (-1,))
     parameter['interpolated_data'] = interp1d(step_time, total_pressure, axis=0)
-    save_data_dic = {'radius': parameter['radius'], 'tube_length': parameter['structure_length'], 'number_sections': number_sections}
-    with open(path_to_save+"\output.npy", 'wb') as f:
-        pickle.dump(save_data_dic, f)
+
     return parameter, PHFSI, sol
 
 class InputDefinitions:
@@ -321,8 +319,8 @@ class VisualizingResults:
             self.input_shape = np.array([pdic['inp_entrance'](t) for t in pdic['t_evaluation']])
             self.input_value =pdic['inp_entrance']
             self.scale = pdic['scale']
-            self.min_pressure = pdic['min_pressure']*pdic['scale']
-            self.max_pressure = pdic['max_pressure']*pdic['scale']
+            self.min_pressure = -20
+            self.max_pressure = 50
             self.crop_x_start = 800
             self.crop_x_end = 2100
             self.crop_y_start = 50
@@ -389,6 +387,8 @@ class VisualizingResults:
         self.ax1.set_xlabel('time [s]')
         self.figure.subplots_adjust(wspace=0.5)
         plt.draw()
+
+
     def set_time(self,val):
         self.actual_time = self.time_step.val
         self.update_pressure_plot_()
