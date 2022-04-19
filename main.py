@@ -27,8 +27,8 @@ import matplotlib
 import pickle
 
 if __name__ == '__main__':
-    path_to_image =r'C:\Users\Faiza\Desktop\1D_PH_FSI\cardiac_cycle_images'
-    simulation_time=1
+    path_to_image =[r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\heart_front', r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\heart_side']
+    simulation_time=2
     scale = 0.00750062 #1 for Pa or 0.00750062 if you want to plot pressure in mmHg
     pressure_title="pressure in [mmgH]" #change title accordingly to scale
     input_definition = func.InputDefinitions()
