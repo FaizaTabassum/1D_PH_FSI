@@ -28,16 +28,31 @@ import pickle
 
 if __name__ == '__main__':
     path_to_image =[r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\heart_front', r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\heart_side']
-    simulation_time=2
+    simulation_time=1
+    pressure_outlet =1000
     scale = 0.00750062 #1 for Pa or 0.00750062 if you want to plot pressure in mmHg
-    pressure_title="pressure in [mmgH]" #change title accordingly to scale
+    pressure_title="Druck [mmgH]" #change title accordingly to scale
     input_definition = func.InputDefinitions()
-    save_data_dic = {'radius': input_definition.tube_base_radius, 'tube_length': input_definition.tube_length,
-                     'number_sections': input_definition.number_sections}
+    save_data_dic = {'radius': input_definition.tube_base_radius, 'tube_base_radius': input_definition.tube_base_radius_val, 'tube_length': input_definition.tube_length,
+                     'number_sections': input_definition.number_sections, 'stenosis_radius_proportion': input_definition.stenosis_radius_proportion, 'stenosis_expansion': input_definition.stenosis_expansion, 'stenosis_position': input_definition.stenosis_position}
     with open(input_definition.save_data_path + "\output.npy", 'wb') as f:
         pickle.dump(save_data_dic, f)
-    parameter_dic, internal_information_of_model, results_integration = func.run_simulation(input_definition.tube_base_radius, input_definition.tube_length, int(input_definition.number_sections), path_to_image,simulation_time = simulation_time,path_to_input=input_definition.flow_profile_path,path_to_save=input_definition.save_data_path, scale = scale, pressure_title=pressure_title)
-    simulation_class = func.VisualizingExtendedResults(parameter_dic)
-    for i in range(0, len(internal_information_of_model.t_evaluation), 1):
-        simulation_class.update_pressure_plot(internal_information_of_model.t_evaluation[i])
-    plt.show()
+    parameter_dic, internal_information_of_model, results_integration = func.run_simulation(input_definition.tube_base_radius, input_definition.tube_length, int(input_definition.number_sections), path_to_image,simulation_time = simulation_time,path_to_input=input_definition.flow_profile_path,path_to_save=input_definition.save_data_path, scale = scale, pressure_title=pressure_title, pressure_at_outlet=pressure_outlet)
+    xs = np.linspace(-save_data_dic['tube_length'] / 2, save_data_dic['tube_length'] / 2, int(save_data_dic['number_sections']))
+    adjust_parameter_radius_proportion = (save_data_dic['stenosis_radius_proportion']/2)
+    absolute_stenosis_depth = save_data_dic['tube_base_radius'] *adjust_parameter_radius_proportion
+    radius =save_data_dic['tube_base_radius'] * np.ones(len(xs)) - absolute_stenosis_depth * np.exp(
+        -0.5 * (xs - save_data_dic['stenosis_position']) ** 2 / save_data_dic['stenosis_expansion'] ** 2)
+    parameter_dic1, internal_information_of_model1, results_integration1 = func.run_simulation(
+        radius, input_definition.tube_length, int(input_definition.number_sections),
+        path_to_image, simulation_time=simulation_time, path_to_input=input_definition.flow_profile_path,
+        path_to_save=input_definition.save_data_path, scale=scale, pressure_title=pressure_title, pressure_at_outlet=pressure_outlet)
+    radius = np.ones(len(xs))
+    parameter_dic2, internal_information_of_model2, results_integration2 = func.run_simulation(
+        radius, input_definition.tube_length, int(input_definition.number_sections),
+        path_to_image, simulation_time=simulation_time, path_to_input=input_definition.flow_profile_path,
+        path_to_save=input_definition.save_data_path, scale=scale, pressure_title=pressure_title, pressure_at_outlet=pressure_outlet)
+    simulation_class = func.VisualizingExtendedResults(parameter_dic, parameter_dic1, parameter_dic2)
+    for j in range(0, 100, 1):
+        for t in parameter_dic['t_evaluation'][::parameter_dic['sample_time_visualization']]:
+            simulation_class.update_pressure_plot(t)
