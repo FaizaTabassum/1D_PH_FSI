@@ -528,7 +528,7 @@ class VisualizingExtendedResults:
         self.figure.add_artist(lines.Line2D([0.2255, 0.353], [0.538, 0.723],color='b', lw=1))
 
         self.cat_logo = plt.subplot2grid((16, 35), (12, 0), colspan=2, rowspan=1)
-        self.flow_profile_fig = plt.subplot2grid((16, 35), (0, 12), colspan=8, rowspan=3)
+        self.flow_profile_fig = plt.subplot2grid((16, 35), (1, 13), colspan=7, rowspan=3)
         self.clock = plt.subplot2grid((16, 35), (3, 10), colspan=2, rowspan=2)
         self.heart_front = plt.subplot2grid((16, 35), (5, 3), rowspan=8, colspan=8)
         self.heart_side = plt.subplot2grid((16, 35), (5, 11), rowspan=8, colspan=8)
