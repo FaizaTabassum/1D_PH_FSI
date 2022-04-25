@@ -28,7 +28,7 @@ import pickle
 
 if __name__ == '__main__':
     path_to_image =[r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\heart_front', r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\heart_side']
-    simulation_time=1
+    simulation_time=0.5
     pressure_outlet =1000
     scale = 0.00750062 #1 for Pa or 0.00750062 if you want to plot pressure in mmHg
     pressure_title="Druck [mmgH]" #change title accordingly to scale
@@ -53,6 +53,4 @@ if __name__ == '__main__':
         path_to_image, simulation_time=simulation_time, path_to_input=input_definition.flow_profile_path,
         path_to_save=input_definition.save_data_path, scale=scale, pressure_title=pressure_title, pressure_at_outlet=pressure_outlet)
     simulation_class = func.VisualizingExtendedResults(parameter_dic, parameter_dic1, parameter_dic2)
-    for j in range(0, 100, 1):
-        for t in parameter_dic['t_evaluation'][::parameter_dic['sample_time_visualization']]:
-            simulation_class.update_pressure_plot(t)
+    simulation_class.update_pressure_plot(10)
