@@ -453,6 +453,7 @@ class VisualizingExtendedResults:
             self.total_pressure_intermediate = pdic1['interpolated_data']
             self.total_pressure_final = pdic2['interpolated_data']
             self.pressure_title=pdic['pressure_title']
+            self.path_to_images = pdic['path_to_image']
             self.heart_front_image_filenames = self.get_image_file_names(pdic['path_to_image'][0])
             self.heart_side_image_filenames = self.get_image_file_names(pdic['path_to_image'][1])
             self.number_of_image_frames = len(self.heart_front_image_filenames)
@@ -537,7 +538,7 @@ class VisualizingExtendedResults:
         self.mirmi_logo = plt.subplot2grid((16, 35), (14, 4), rowspan=2, colspan=4)
         self.tum_logo = plt.subplot2grid((16, 35), (14, 8), rowspan=2, colspan=6)
         self.tube = plt.subplot2grid((16, 35), (2, 20), rowspan=15, colspan=15, projection='3d')
-        self.cat_logo.imshow(cv2.cvtColor(cv2.imread(r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\logo-cat-medic.jpg'), cv2.COLOR_BGR2RGB))
+        self.cat_logo.imshow(cv2.cvtColor(cv2.imread(self.path_to_images[2]+r'\logo-cat-medic.jpg'), cv2.COLOR_BGR2RGB))
         self.cat_logo.axis('off')
 
 
@@ -547,7 +548,7 @@ class VisualizingExtendedResults:
         self.flow_profile_fig.set_xlabel("Zeit [s]", fontsize = 20.0)
         self.clock.set_aspect('equal')
         self.clock.imshow(
-            cv2.cvtColor(cv2.imread(r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\clock.jpg'), cv2.COLOR_BGR2RGB))
+            cv2.cvtColor(cv2.imread(self.path_to_images[2]+ r'\clock.jpg'), cv2.COLOR_BGR2RGB))
         self.clock.axis('off')
 
 
@@ -575,15 +576,15 @@ class VisualizingExtendedResults:
 
 
         self.dhm_logo.imshow(
-            cv2.cvtColor(cv2.imread(r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\dhm.png'), cv2.COLOR_BGR2RGB))
+            cv2.cvtColor(cv2.imread(self.path_to_images[2]+r'\dhm.png'), cv2.COLOR_BGR2RGB))
         self.dhm_logo.axis('off')
 
         self.mirmi_logo.imshow(
-            cv2.cvtColor(cv2.imread(r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\mirmi.png'), cv2.COLOR_BGR2RGB))
+            cv2.cvtColor(cv2.imread(self.path_to_images[2]+r'\mirmi.png'), cv2.COLOR_BGR2RGB))
         self.mirmi_logo.axis('off')
 
         self.tum_logo.imshow(
-            cv2.cvtColor(cv2.imread(r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\tum.png'), cv2.COLOR_BGR2RGB))
+            cv2.cvtColor(cv2.imread(self.path_to_images[2]+r'\tum.png'), cv2.COLOR_BGR2RGB))
         self.tum_logo.axis('off')
 
         self.clock.set_xticks([])
