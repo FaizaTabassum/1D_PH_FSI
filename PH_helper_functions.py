@@ -40,7 +40,7 @@ class BoundaryDefinitions:
 
     @property
     def inp_const(self):
-        inp_max = 100 * 10**-6
+        inp_max = 100 * 10**-3
         tinp = 3*10**-3
         return lambda t: (inp_max / 2) * (1 - np.cos(np.pi * t / tinp)) if t < tinp else inp_max
 
@@ -128,7 +128,7 @@ def run_simulation(radius, tube_length, number_sections, path_to_images,path_to_
     boundary_definition = BoundaryDefinitions(path_input_at_inlet, pressure_at_outlet)
 
     t_evaluation = np.ndarray.tolist(np.arange(0, simulation_time, sample_rate))
-
+    # 'inp_entrance': boundary_definition.repeat_input(simulation_time),
     parameter = {
         'min_pressure': min_pressure,
         'max_pressure': max_pressure,
@@ -469,7 +469,8 @@ class VisualizingExtendedResults:
             self.section_length = self.structure_length/self.N_sec
             self.t_evaluation = pdic['t_evaluation']
             self.simulation_time = self.t_evaluation[-1]
-            self.input_shape = np.array([pdic['inp_entrance'](t) for t in pdic['t_evaluation']])
+            self.input_scale = 1*10**6
+            self.input_shape = np.array([pdic['inp_entrance'](t)*self.input_scale for t in pdic['t_evaluation']])
             self.input_value =pdic['inp_entrance']
             self.scale = pdic['scale']
             self.min_pressure = pdic['min_pressure']*self.scale
@@ -543,8 +544,8 @@ class VisualizingExtendedResults:
 
 
         self.flow_profile,  = self.flow_profile_fig.plot(self.t_evaluation, self.input_shape)
-        self.set_actual_state_point, = self.flow_profile_fig.plot([0], [self.input_value(0)], label='toto', ms=5, color='b', marker='o', ls='')
-        self.flow_profile_fig.set_ylabel("Blutmenge [L]", fontsize = 20.0)
+        self.set_actual_state_point, = self.flow_profile_fig.plot([0], [self.input_value(0)*self.input_scale], label='toto', ms=5, color='b', marker='o', ls='')
+        self.flow_profile_fig.set_ylabel("Blutmenge [ml/s]", fontsize = 20.0)
         self.flow_profile_fig.set_xlabel("Zeit [s]", fontsize = 20.0)
         self.clock.set_aspect('equal')
         self.clock.imshow(
@@ -676,7 +677,7 @@ class VisualizingExtendedResults:
         self.heart_front_image.set_data(heartimage_front)
         self.heart_side_image.set_data(heartimage_side)
         self.set_actual_state_point.set_xdata([t])
-        self.set_actual_state_point.set_ydata([self.input_value(t)])
+        self.set_actual_state_point.set_ydata([self.input_value(t)*self.input_scale])
         self.figure.canvas.draw_idle()
         # self.tube.set_axis_off()
         self.tube.set_yticks([])
