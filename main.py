@@ -28,10 +28,11 @@ import pickle
 
 if __name__ == '__main__':
     path_to_image =[r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\heart_front', r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\heart_side', r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images'] #please change the path to Images\heart_front, Images_heart_side and Images
-    simulation_time=0.5
-    pressure_outlet =1000
+    simulation_time=1 #please define time of one heart beat
+    pressure_outlet =1000 #please define pressure at outlet
     scale = 0.00750062 #1 for Pa or 0.00750062 if you want to plot pressure in mmHg
     pressure_title="Druck [mmgH]" #change title accordingly to scale
+
     input_definition = func.InputDefinitions()
     save_data_dic = {'radius': input_definition.tube_base_radius, 'tube_base_radius': input_definition.tube_base_radius_val, 'tube_length': input_definition.tube_length,
                      'number_sections': input_definition.number_sections, 'stenosis_radius_proportion': input_definition.stenosis_radius_proportion, 'stenosis_expansion': input_definition.stenosis_expansion, 'stenosis_position': input_definition.stenosis_position}
