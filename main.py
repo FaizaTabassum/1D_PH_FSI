@@ -31,7 +31,7 @@ if __name__ == '__main__':
     simulation_time=1 #please define time of one heart beat
     pressure_outlet =1000 #please define pressure at outlet
     scale = 0.00750062 #1 for Pa or 0.00750062 if you want to plot pressure in mmHg
-    pressure_title="Druck [mmgH]" #change title accordingly to scale
+    pressure_title="Druck [mmHg]" #change title accordingly to scale
 
     input_definition = func.InputDefinitions()
     save_data_dic = {'radius': input_definition.tube_base_radius, 'tube_base_radius': input_definition.tube_base_radius_val, 'tube_length': input_definition.tube_length,
@@ -48,10 +48,17 @@ if __name__ == '__main__':
         radius, input_definition.tube_length, int(input_definition.number_sections),
         path_to_image, simulation_time=simulation_time, path_to_input=input_definition.flow_profile_path,
         path_to_save=input_definition.save_data_path, scale=scale, pressure_title=pressure_title, pressure_at_outlet=pressure_outlet)
-    radius = np.ones(len(xs))
+    radius = np.ones(len(xs))*save_data_dic['tube_base_radius']
     parameter_dic2, internal_information_of_model2, results_integration2 = func.run_simulation(
         radius, input_definition.tube_length, int(input_definition.number_sections),
         path_to_image, simulation_time=simulation_time, path_to_input=input_definition.flow_profile_path,
         path_to_save=input_definition.save_data_path, scale=scale, pressure_title=pressure_title, pressure_at_outlet=pressure_outlet)
+
+    with open("pressure", 'wb') as f:
+        pickle.dump(parameter_dic['interpolated_data'], f)
+    with open("pressure1", 'wb') as f:
+        pickle.dump(parameter_dic1['interpolated_data'], f)
+    with open("pressure2", 'wb') as f:
+        pickle.dump(parameter_dic2['interpolated_data'], f)
     simulation_class = func.VisualizingExtendedResults(parameter_dic, parameter_dic1, parameter_dic2)
-    simulation_class.update_pressure_plot(10)
+    simulation_class.update_pressure_plot(20)
