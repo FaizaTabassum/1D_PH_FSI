@@ -38,31 +38,31 @@ if __name__ == '__main__':
                      'number_sections': input_definition.number_sections, 'stenosis_radius_proportion': input_definition.stenosis_radius_proportion, 'stenosis_expansion': input_definition.stenosis_expansion, 'stenosis_position': input_definition.stenosis_position}
     with open(input_definition.save_data_path + "\output.npy", 'wb') as f:
         pickle.dump(save_data_dic, f)
-    parameter_dic, internal_information_of_model, results_integration = func.run_simulation(input_definition.tube_base_radius, input_definition.tube_length, int(input_definition.number_sections), path_to_image,simulation_time = simulation_time,path_to_input=input_definition.flow_profile_path,path_to_save=input_definition.save_data_path, scale = scale, pressure_title=pressure_title, pressure_at_outlet=pressure_outlet)
-    xs = np.linspace(-save_data_dic['tube_length'] / 2, save_data_dic['tube_length'] / 2, int(save_data_dic['number_sections']))
-    adjust_parameter_radius_proportion = (save_data_dic['stenosis_radius_proportion']/2)
-    absolute_stenosis_depth = save_data_dic['tube_base_radius'] *adjust_parameter_radius_proportion
-    radius =save_data_dic['tube_base_radius'] * np.ones(len(xs)) - absolute_stenosis_depth * np.exp(
-        -0.5 * (xs - save_data_dic['stenosis_position']) ** 2 / save_data_dic['stenosis_expansion'] ** 2)
-    parameter_dic1, internal_information_of_model1, results_integration1 = func.run_simulation(
-        radius, input_definition.tube_length, int(input_definition.number_sections),
-        path_to_image, simulation_time=simulation_time, path_to_input=input_definition.flow_profile_path,
-        path_to_save=input_definition.save_data_path, scale=scale, pressure_title=pressure_title, pressure_at_outlet=pressure_outlet)
-    radius = np.ones(len(xs))*save_data_dic['tube_base_radius']
-    parameter_dic2, internal_information_of_model2, results_integration2 = func.run_simulation(
-        radius, input_definition.tube_length, int(input_definition.number_sections),
-        path_to_image, simulation_time=simulation_time, path_to_input=input_definition.flow_profile_path,
-        path_to_save=input_definition.save_data_path, scale=scale, pressure_title=pressure_title, pressure_at_outlet=pressure_outlet)
 
-    with open("pressure", 'wb') as f:
-        pickle.dump(parameter_dic['interpolated_data'], f)
-    with open("pressure1", 'wb') as f:
-        pickle.dump(parameter_dic1['interpolated_data'], f)
-    with open("pressure2", 'wb') as f:
-        pickle.dump(parameter_dic2['interpolated_data'], f)
-    with open("min_pressure", 'wb') as f:
-        pickle.dump(parameter_dic2['min_pressure'], f)
-    with open("max_pressure", 'wb') as f:
-        pickle.dump(parameter_dic2['max_pressure'], f)
-    simulation_class = func.VisualizingExtendedResults(parameter_dic, parameter_dic1, parameter_dic2)
+    parameter_dic = func.get_parameter(input_definition.tube_base_radius, input_definition.tube_length,
+                                       int(input_definition.number_sections), path_to_image,
+                                       simulation_time=simulation_time,
+                                       path_to_input=input_definition.flow_profile_path,
+                                       path_to_save=input_definition.save_data_path, scale=scale,
+                                       pressure_title=pressure_title, pressure_at_outlet=pressure_outlet)
+
+    with open("pressure.pkl", 'rb') as f:
+        pressure = pickle.load(f)
+    with open("pressure1.pkl", 'rb') as f:
+        pressure1 = pickle.load(f)
+    with open("pressure2.pkl", 'rb') as f:
+        pressure2 = pickle.load(f)
+    with open("radius.pkl", 'rb') as f:
+        radius = pickle.load(f)
+    with open("radius1.pkl", 'rb') as f:
+        radius1 = pickle.load(f)
+    with open("radius2.pkl", 'rb') as f:
+        radius2 = pickle.load(f)
+    with open("min_pressure.txt", 'r') as f:
+        min_pressure = f.readlines()[0]
+    with open("max_pressure.txt", 'r') as f:
+        max_pressure = f.readlines()[0]
+
+    simulation_class = func.VisualizingExtendedResults(parameter_dic, pressure, pressure1, pressure2,radius, radius1, radius2, min_pressure,max_pressure)
     simulation_class.update_pressure_plot(20)
+

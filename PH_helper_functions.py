@@ -115,8 +115,8 @@ class BoundaryDefinitions:
     def out_const(self):
         out = lambda t: self.out_max
         return out
-@profile
-def run_simulation(radius, tube_length, number_sections, path_to_images,path_to_input, path_to_save, demo = False, simulation_time=1, min_pressure = 0, max_pressure = 0, scale = 1, pressure_title='', pressure_at_outlet=0):
+
+def get_parameter(radius, tube_length, number_sections, path_to_images,path_to_input, path_to_save, demo = False, simulation_time=1, min_pressure = 0, max_pressure = 0, scale = 1, pressure_title='', pressure_at_outlet=0):
     N_sec = number_sections
     N_nodes = number_sections
     simulation_time = simulation_time
@@ -161,33 +161,6 @@ def run_simulation(radius, tube_length, number_sections, path_to_images,path_to_
         'scale': scale,
         'pressure_title':pressure_title
     }
-
-    PHFSI = OneD_PHM(parameter, demo = demo) #this is for flow, if you want to test Pressure, you need to substitute Flow by Pressure
-    T = [0, simulation_time]
-    x_init = np.concatenate((np.zeros(3*N_sec), parameter['fluid_density']*np.ones(N_nodes))).reshape(-1,)
-    sol = solve_ivp(
-        fun=lambda t, x0: PHFSI.dynamic_model(t, x0),
-        obj=PHFSI,
-        t_span=[0, simulation_time],
-        t_eval=t_evaluation,
-        min_step=sample_rate,
-        max_step=sample_rate,
-        y0=x_init,
-        first_step=None,
-        hmax=sample_rate,
-        hmin=sample_rate,
-        rtol=10 ** (-3),
-        atol=10 ** (-6),
-        dense_output=False,
-        method='BDF',
-        vectorized=False
-    )
-    parameter['min_pressure'] = np.min(PHFSI.total_pressure[:, 0])
-    parameter['max_pressure'] = np.max(PHFSI.total_pressure[:, 0])
-    total_pressure = PHFSI.total_pressure
-    step_time = np.reshape(PHFSI.step_time, (-1,))
-    parameter['interpolated_data'] = interp1d(step_time, total_pressure, axis=0)
-
     return parameter
 
 
@@ -532,10 +505,10 @@ class VisualizingResults:
         plt.pause(0.1)
 
 class VisualizingExtendedResults:
-    def __init__(self,pdic, pdic1, pdic2):
-            self.total_pressure_initial = pdic['interpolated_data']
-            self.total_pressure_intermediate = pdic1['interpolated_data']
-            self.total_pressure_final = pdic2['interpolated_data']
+    def __init__(self,pdic, pressure, pressure1, pressure2, radius, radius1, radius2, min_pressure, max_pressure):
+            self.total_pressure_initial = pressure
+            self.total_pressure_intermediate = pressure1
+            self.total_pressure_final = pressure2
             self.pressure_title=pdic['pressure_title']
             self.path_to_images = pdic['path_to_image']
             self.heart_front_image_filenames = self.get_image_file_names(pdic['path_to_image'][0])
@@ -545,9 +518,9 @@ class VisualizingExtendedResults:
             self.sample_time_vis = pdic['sample_time_visualization']
             self.t_sim = pdic['t_evaluation'][::self.sample_time_vis]
             self.N_sec = pdic['N_sec']
-            self.radius_initial = pdic['radius']
-            self.radius_intermediate = pdic1['radius']
-            self.radius_final = pdic2['radius']
+            self.radius_initial = radius
+            self.radius_intermediate = radius1
+            self.radius_final = radius2
             self.N_ypoints_for_pressure_image = pdic['N_ypoints_for_pressure_image']
             self.structure_length = pdic['structure_length']
             self.section_length = self.structure_length/self.N_sec
@@ -557,8 +530,8 @@ class VisualizingExtendedResults:
             self.input_shape = np.array([pdic['inp_entrance'](t)*self.input_scale for t in pdic['t_evaluation']])
             self.input_value =pdic['inp_entrance']
             self.scale = pdic['scale']
-            self.min_pressure = pdic['min_pressure']*self.scale
-            self.max_pressure = pdic['max_pressure']*self.scale
+            self.min_pressure = float(min_pressure)*self.scale
+            self.max_pressure = float(max_pressure)*self.scale
             self.crop_front_x_start = 580
             self.crop_front_x_end = 1110
             self.crop_front_y_start = 0
