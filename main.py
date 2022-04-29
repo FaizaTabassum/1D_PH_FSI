@@ -60,5 +60,9 @@ if __name__ == '__main__':
         pickle.dump(parameter_dic1['interpolated_data'], f)
     with open("pressure2", 'wb') as f:
         pickle.dump(parameter_dic2['interpolated_data'], f)
+    with open("min_pressure", 'wb') as f:
+        pickle.dump(parameter_dic2['min_pressure'], f)
+    with open("max_pressure", 'wb') as f:
+        pickle.dump(parameter_dic2['max_pressure'], f)
     simulation_class = func.VisualizingExtendedResults(parameter_dic, parameter_dic1, parameter_dic2)
     simulation_class.update_pressure_plot(20)

@@ -115,7 +115,80 @@ class BoundaryDefinitions:
     def out_const(self):
         out = lambda t: self.out_max
         return out
+@profile
+def run_simulation(radius, tube_length, number_sections, path_to_images,path_to_input, path_to_save, demo = False, simulation_time=1, min_pressure = 0, max_pressure = 0, scale = 1, pressure_title='', pressure_at_outlet=0):
+    N_sec = number_sections
+    N_nodes = number_sections
+    simulation_time = simulation_time
+    sample_rate = 1e-03
+    path_input_at_inlet = path_to_input
+    boundary_definition = BoundaryDefinitions(path_input_at_inlet, pressure_at_outlet)
 
+    t_evaluation = np.ndarray.tolist(np.arange(0, simulation_time, sample_rate))
+    # 'inp_entrance': boundary_definition.repeat_input(simulation_time),
+    parameter = {
+        'min_pressure': min_pressure,
+        'max_pressure': max_pressure,
+        'geo_dissipation': True,
+        'geo_factor': 2.6,
+        'vis_factor': 16,
+        'vis_dissipation': True,
+        'inp_entrance': boundary_definition.repeat_input(simulation_time),
+        'inp_exit': boundary_definition.out_const,
+        'structure_length': tube_length * 10 ** -2,
+        'radius': radius*10 ** -2,
+        'wall_thickness': 3 * 10 ** -4,
+        'N_sec': N_sec,
+        'N_ypoints_for_pressure_image': N_sec,
+        'N_nodes': N_nodes,
+        't_evaluation': t_evaluation,
+        'sample_time_visualization':40,
+        'fluid_density': 1.06 * 10 ** 3,
+        'viscosity': 0.004,
+        'structure_density': 1.1 * 10 ** 3,
+        'poi_rat': 0.4,
+        'E_mod': 3 * 10 ** 5,
+        'structure_r_dissipation':0,
+        'structure_z_dissipation': 0,
+        'fluid_bulk_modulus': 2.15 * 10 ** 9,
+        'external_force': np.zeros(N_sec),
+        'stiffness_k1': 1*10**10,
+        'stiffness_k2': -20,
+        'stiffness_k3': 1*10**9,
+        'requested_data_over_tube': ['fluid_velocity', 'dynamic_pressure', 'static_pressure'],
+        'requested_data_at_boundaries': ['pressure', 'flow'],
+        'path_to_image': path_to_images,
+        'scale': scale,
+        'pressure_title':pressure_title
+    }
+
+    PHFSI = OneD_PHM(parameter, demo = demo) #this is for flow, if you want to test Pressure, you need to substitute Flow by Pressure
+    T = [0, simulation_time]
+    x_init = np.concatenate((np.zeros(3*N_sec), parameter['fluid_density']*np.ones(N_nodes))).reshape(-1,)
+    sol = solve_ivp(
+        fun=lambda t, x0: PHFSI.dynamic_model(t, x0),
+        obj=PHFSI,
+        t_span=[0, simulation_time],
+        t_eval=t_evaluation,
+        min_step=sample_rate,
+        max_step=sample_rate,
+        y0=x_init,
+        first_step=None,
+        hmax=sample_rate,
+        hmin=sample_rate,
+        rtol=10 ** (-3),
+        atol=10 ** (-6),
+        dense_output=False,
+        method='BDF',
+        vectorized=False
+    )
+    parameter['min_pressure'] = np.min(PHFSI.total_pressure[:, 0])
+    parameter['max_pressure'] = np.max(PHFSI.total_pressure[:, 0])
+    total_pressure = PHFSI.total_pressure
+    step_time = np.reshape(PHFSI.step_time, (-1,))
+    parameter['interpolated_data'] = interp1d(step_time, total_pressure, axis=0)
+
+    return parameter
 
 
 @profile
