@@ -30,6 +30,7 @@ from matplotlib.patches import Ellipse
 from matplotlib.patches import Arc
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import time
+import sympy as sym
 
 
 class BoundaryDefinitions:
@@ -40,7 +41,7 @@ class BoundaryDefinitions:
 
     @property
     def inp_const(self):
-        inp_max = 100 * 10**-3
+        inp_max = 300 * self.scale
         tinp = 3*10**-3
         return lambda t: (inp_max / 2) * (1 - np.cos(np.pi * t / tinp)) if t < tinp else inp_max
 
@@ -133,7 +134,7 @@ def get_parameter(radius, tube_length, number_sections, path_to_images,path_to_i
         'geo_factor': 2.6,
         'vis_factor': 16,
         'vis_dissipation': True,
-        'inp_entrance': boundary_definition.repeat_input(simulation_time),
+        'inp_entrance': boundary_definition.input_const,
         'inp_exit': boundary_definition.out_const,
         'structure_length': tube_length * 10 ** -2,
         'radius': radius*10 ** -2,
@@ -174,7 +175,6 @@ def run_simulation(radius, tube_length, number_sections, path_to_images,path_to_
     boundary_definition = BoundaryDefinitions(path_input_at_inlet, pressure_at_outlet)
 
     t_evaluation = np.ndarray.tolist(np.arange(0, simulation_time, sample_rate))
-    # 'inp_entrance': boundary_definition.repeat_input(simulation_time),
     parameter = {
         'min_pressure': min_pressure,
         'max_pressure': max_pressure,
@@ -182,7 +182,7 @@ def run_simulation(radius, tube_length, number_sections, path_to_images,path_to_
         'geo_factor': 2.6,
         'vis_factor': 16,
         'vis_dissipation': True,
-        'inp_entrance': boundary_definition.repeat_input(simulation_time),
+        'inp_entrance': boundary_definition.inp_const,
         'inp_exit': boundary_definition.out_const,
         'structure_length': tube_length * 10 ** -2,
         'radius': radius*10 ** -2,
@@ -236,7 +236,6 @@ def run_simulation(radius, tube_length, number_sections, path_to_images,path_to_
     total_pressure = PHFSI.total_pressure
     step_time = np.reshape(PHFSI.step_time, (-1,))
     parameter['interpolated_data'] = interp1d(step_time, total_pressure, axis=0)
-
     return parameter, PHFSI, sol
 
 class InputDefinitions:
@@ -279,7 +278,7 @@ class InputDefinitions:
                              valinit=5, valfmt='%1.1f cm', facecolor='#cc7000')
         self.stenosis_position = Slider(ax=self.ax_s, label='stenosis position ', valmin=-5, valmax=5,
                                    valinit=0, valfmt=' %1.1f cm', facecolor='#cc7000')
-        self.stenosis_radius_proportion = Slider(ax=self.ax_d, label='stenosis radius proportion ', valmin=0, valmax=0.99,
+        self.stenosis_radius_proportion = Slider(ax=self.ax_d, label='stenosis radius proportion ', valmin=-0.99, valmax=0.99,
                                             valinit=0, valfmt=' %1.1f cm', facecolor='#cc7000')
         self.stenosis_expansion = Slider(ax=self.ax_w, label='stenosis spread ', valmin=0.000001, valmax=5,
                                     valinit=1, valfmt=' %1.1f cm', facecolor='#cc7000')
@@ -330,7 +329,7 @@ class InputDefinitions:
 
     def start_program(self, val):
         self.tube_base_radius_val = copy.copy(self.tube_base_radius.val)
-        self.tube_base_radius, self.stenosis_position, self.stenosis_expansion = self.stenosis(2)
+        self.tube_base_radius, self.stenosis_position, self.stenosis_expansion, self.geometry = self.stenosis(2)
         self.tube_length = self.tube_length.val
         self.number_sections = self.number_sections.val
         self.stenosis_radius_proportion = self.stenosis_radius_proportion.val
@@ -361,401 +360,173 @@ class InputDefinitions:
         self.ax.plot_surface(self.geometry[0], self.geometry[1], self.geometry[2])
         self.ax.set_box_aspect((np.ptp(self.geometry[0]), np.ptp(self.geometry[1]), np.ptp(self.geometry[2])))
         self.fig.canvas.draw_idle()
-        return self.radius, self.stenosis_position.val, self.stenosis_expansion.val
+        return self.radius, self.stenosis_position.val, self.stenosis_expansion.val, self.geometry
+class ChooseCase:
+    def __init__(self):
+        self.fig = plt.figure(constrained_layout=True)
+        self.fig.subplots_adjust(bottom=-0.0, top=0.6)
+        self.ax_straight_expansion = self.fig.add_axes([0.2, 0.84, 0.2, 0.05])
+        self.ax_straight_expansion.spines['top'].set_visible(True)
+        self.ax_straight_expansion.spines['right'].set_visible(True)
+        self.ax_stenosis = self.fig.add_axes([0.2, 0.78, 0.2, 0.05])
+        self.ax_stenosis.spines['top'].set_visible(True)
+        self.ax_stenosis.spines['right'].set_visible(True)
+        self.straight_expansion_button = Button(ax=self.ax_straight_expansion, label='straight expansion')
+        self.stenosis_button = Button(ax=self.ax_stenosis, label="stenosis")
+        self.straight_expansion_button.on_clicked(self.start_program_straight_expansion)
+        self.stenosis_button.on_clicked(self.start_program_stenosis)
+        plt.show()
+    def start_program_straight_expansion(self, val):
+        plt.close('all')
+        self.input_definitions = InputDefinitionsStraightExpansion()
+        return
+    def start_program_stenosis(self, val):
+        plt.close('all')
+        self.input_definitions = InputDefinitions()
+        return
 
-class VisualizingResults:
-    def __init__(self,pdic):
-            self.total_pressure = pdic['interpolated_data']
-            self.pressure_title=pdic['pressure_title']
-            self.path_to_heart_images = pdic['path_to_image']
-            self.heart_image_filenames = self.get_image_file_names()
-            self.number_of_image_frames = len(self.heart_image_filenames)
-            self.frame_count = 0
-            self.sample_time_vis = pdic['sample_time_visualization']
-            self.t_sim = pdic['t_evaluation'][::self.sample_time_vis]
-            self.N_sec = pdic['N_sec']
-            self.radius = pdic['radius']
-            self.N_ypoints_for_pressure_image = pdic['N_ypoints_for_pressure_image']
-            self.structure_length = pdic['structure_length']
-            self.section_length = self.structure_length/self.N_sec
-            self.t_evaluation = pdic['t_evaluation']
-            self.simulation_time = self.t_evaluation[-1]
-            self.input_shape = np.array([pdic['inp_entrance'](t) for t in pdic['t_evaluation']])
-            self.input_value =pdic['inp_entrance']
-            self.scale = pdic['scale']
-            self.min_pressure = pdic['min_pressure']
-            self.max_pressure = pdic['max_pressure']
-            self.crop_x_start = 800
-            self.crop_x_end = 2100
-            self.crop_y_start = 50
-            self.crop_y_end = 1500
-            self.geometry = self.data_for_structure_along_z()
-            self.initialize_demo_figure()
+class InputDefinitionsStraightExpansion:
+    def __init__(self):
+        ICON_PLAY = plt.imread(r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\play.png')
+        ICON_LOAD = plt.imread(r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\load.png')
+        ICON_SAVE = plt.imread(r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\save.png')
+        self.filename = ''
+        self.fig = plt.figure(constrained_layout=True)
+        self.fig.subplots_adjust(bottom=-0.0, top=0.6)
+        self.ax_number_sections = self.fig.add_axes([0.2, 0.84, 0.2, 0.05])
+        self.ax_number_sections.spines['top'].set_visible(True)
+        self.ax_number_sections.spines['right'].set_visible(True)
+        self.ax_straight_radius = self.fig.add_axes([0.2, 0.78, 0.2, 0.05])
+        self.ax_straight_radius.spines['top'].set_visible(True)
+        self.ax_straight_radius.spines['right'].set_visible(True)
+        self.ax_structure_length = self.fig.add_axes([0.2, 0.72, 0.2, 0.05])
+        self.ax_structure_length.spines['top'].set_visible(True)
+        self.ax_structure_length.spines['right'].set_visible(True)
+        self.ax_point_start_expansion = self.fig.add_axes([0.2, 0.66, 0.2, 0.05])
+        self.ax_point_start_expansion.spines['top'].set_visible(True)
+        self.ax_point_start_expansion.spines['right'].set_visible(True)
+        self.ax_angle = self.fig.add_axes([0.2, 0.60, 0.2, 0.05])
+        self.ax_angle.spines['top'].set_visible(True)
+        self.ax_angle.spines['right'].set_visible(True)
+        self.ax_window = self.fig.add_axes([0.2, 0.54, 0.2, 0.05])
+        self.ax_window.spines['top'].set_visible(True)
+        self.ax_window.spines['right'].set_visible(True)
+        self.ax_start_button = self.fig.add_axes([0.95, 0.01, 0.05, 0.05])
+        self.ax_save_button = self.fig.add_axes([0.9, 0.01, 0.05, 0.05])
+        self.ax_load_button = self.fig.add_axes([0.85, 0.01, 0.05, 0.05])
+        self.ax = self.fig.add_axes([0, 0, 0.5, 0.5], projection='3d')
+
+        self.number_sections = Slider(ax=self.ax_number_sections, label='#sections ', valmin=10, valmax=200, valinit=35,
+                                      valfmt='%d', facecolor='#cc7000', valstep=1)
+        self.tube_base_radius = Slider(ax=self.ax_straight_radius, label='radius ', valmin=0.1, valmax=5.0, valinit=1.0,
+                                       valfmt=' %1.1f cm', facecolor='#cc7000')
+        self.tube_length = Slider(ax=self.ax_structure_length, label='length ', valmin=0.1, valmax=20,
+                                  valinit=5, valfmt='%1.1f cm', facecolor='#cc7000')
+        self.point_start_expansion = Slider(ax=self.ax_point_start_expansion, label='start expansion ', valmin=0.1, valmax=19.9,
+                                        valinit=0, valfmt=' %1.1f cm', facecolor='#cc7000')
+        self.expansion_angle = Slider(ax=self.ax_angle, label='expansion angle ', valmin=0,
+                                                 valmax=45,
+                                                 valinit=0, valfmt=' %1.1f cm', facecolor='#cc7000')
+        self.transition_window = Slider(ax=self.ax_window, label='transition window ',valmin=0.1, valmax=20, valinit=2,valfmt=' %1.1f cm', facecolor='#cc7000')
+        self.play_button = Button(ax=self.ax_start_button, label='', image=ICON_PLAY)
+        self.load_button = Button(ax=self.ax_load_button, label="", image=ICON_LOAD)
+        self.save_button = Button(ax=self.ax_save_button, label="", image=ICON_SAVE)
+
+        self.x = np.linspace(0, self.tube_length.val, self.number_sections.val)
+
+        self.tube_base_radius_val = np.ones(self.number_sections.val) * self.tube_base_radius.val
+        self.radius = np.ones(self.number_sections.val)
+        self.data_for_structure_along_z()
+        self.ax.plot_surface(self.geometry[0], self.geometry[1], self.geometry[2], alpha=1)
+        self.ax.set_box_aspect((np.ptp(self.geometry[0]), np.ptp(self.geometry[1]), np.ptp(self.geometry[2])))
+        self.ax.set_xlabel('tube length [cm]')
+        self.number_sections.on_changed(self.func_straight_expansion)
+        self.tube_base_radius.on_changed(self.func_straight_expansion)
+        self.tube_length.on_changed(self.func_straight_expansion)
+
+        self.point_start_expansion.on_changed(self.func_straight_expansion)
+
+        self.expansion_angle.on_changed(self.func_straight_expansion)
+
+        self.transition_window.on_changed(self.func_straight_expansion)
+        self.play_button.on_clicked(self.start_program)
+        self.load_button.on_clicked(self.load_flow_input_file)
+        self.save_button.on_clicked(self.save_data)
+        plt.show()
 
 
+    def load_flow_input_file(self, val):
+        self.flow_profile_path = fd.askopenfilename()
 
+    def save_data(self, val):
+        self.save_data_path = fd.askdirectory()
+
+    def handle_close(evt):
+        print('Closed Figure!')
+
+    def start_program(self, val):
+        self.tube_base_radius_val = copy.copy(self.tube_base_radius.val)
+        self.tube_base_radius, self.point_start_expansion, self.transition_window, self.geometry = self.func_straight_expansion(2)
+        self.tube_length = self.tube_length.val
+        self.number_sections = self.number_sections.val
+        self.expansion_angle = self.expansion_angle.val
+        self.flow_profile_path = self.flow_profile_path
+        self.save_data_path = self.save_data_path
+        plt.close('all')
+        return
 
     def data_for_structure_along_z(self):
-        z = np.linspace(0, self.structure_length*10**2, self.N_sec)
-        theta = np.linspace(0, 2 * np.pi, self.N_sec)
+        z = np.linspace(0, self.tube_length.val, self.number_sections.val)
+        theta = np.linspace(0, 2 * np.pi, self.number_sections.val)
         theta_grid, z_grid = np.meshgrid(theta, z)
-        varied_radius = self.radius*10**2
+        varied_radius = self.radius
         x_grid = (np.cos(theta_grid).T * varied_radius).T
         y_grid = (np.sin(theta_grid).T * varied_radius).T
-        return x_grid, y_grid, -z_grid
+        self.geometry = [z_grid, x_grid, y_grid]
 
-    def get_image_file_names(self):
-        file_list = os.listdir(self.path_to_heart_images)
-        file_list = sorted(file_list, key=lambda x: float(re.findall("(\d+)", x)[0]))
-        file_list = [os.path.join(self.path_to_heart_images, file_list[i]) for i in range(0, len(file_list),1)]
-        return file_list
-
-    def initialize_demo_figure(self):
-        random_inital_pressure = np.linspace(self.min_pressure, self.max_pressure, self.N_sec)
-
-        self.figure = plt.figure()
-        self.figure.set_figheight(5)
-        self.figure.set_figwidth(30)
-        self.ax0 = self.figure.add_subplot(1, 3, 1)
-        self.ax1 = self.figure.add_subplot(1, 3, 2)
-        self.ax2 = self.figure.add_subplot(1, 3, 3, projection = '3d')
-        self.ax_time = self.figure.add_axes([0.2, 0.84, 0.5, 0.05])
-        self.ax_time.spines['top'].set_visible(True)
-        self.ax_time.spines['right'].set_visible(True)
-        self.time_step = Slider(ax=self.ax_time, label='time ', valmin=0, valmax=self.simulation_time, valinit=0,valfmt=' %1.1f cm', facecolor='#cc7000')
-        self.time_step.on_changed(self.set_time)
-        self.pressure_curve, = self.ax1.plot([], [], color = "red")
-
-        if self.path_to_heart_images == '':
-            self.ax0.remove()
-        else:
-            self.heart = self.ax0.imshow(cv2.imread(self.heart_image_filenames[0])[self.crop_y_start:self.crop_y_end, self.crop_x_start:self.crop_x_end],cmap = plt.get_cmap('Blues'))
-            self.ax0.axis('off')
-        theta = np.linspace(0, 2*np.pi, self.N_sec)
-        theta_grid, pressure_grid = np.meshgrid(theta, random_inital_pressure)
-        self.norm = matplotlib.colors.Normalize(vmin=self.min_pressure, vmax=self.max_pressure)
-        self.pressure_in_tube = self.ax2.plot_surface(self.geometry[0], self.geometry[1], self.geometry[2], facecolors=cm.Reds(self.norm(pressure_grid)),alpha=1, vmin = self.min_pressure, vmax = self.max_pressure)
-        m = cm.ScalarMappable(cmap=cm.Reds, norm=self.norm)
-        m.set_array([])
-        clb = self.figure.colorbar(m, ax = self.ax2, location = 'bottom', orientation = 'horizontal')
-        clb.set_label(self.pressure_title, labelpad=-40, y=1.05, rotation=0)
-        self.ax1.set_box_aspect(1)
-        self.ax2.set_box_aspect((np.ptp(self.geometry[0]), np.ptp(self.geometry[1]), np.ptp(self.geometry[2])))
-        self.ax2.axes.get_yaxis().set_visible(False)
-        self.ax2.set_xlabel('tube length [cm]')
-        self.ejection_fracion = self.ax1.plot(self.t_evaluation, self.input_shape)
-        self.ax1.ticklabel_format(style = 'sci', scilimits=(0,0))
-        self.ax1.set_xlim(0, self.t_evaluation[-1])
-        self.ax1.set_ylim(np.min(self.input_shape), np.max(self.input_shape))
-        self.ax1.set_ylabel('flow input [L/s]')
-        self.ax1.set_xlabel('time [s]')
-        self.figure.subplots_adjust(wspace=0.5)
-        plt.draw()
+    def func_straight_expansion(self, val):
+        self.point_start_expansion.valmin = 0
+        self.point_start_expansion.valmax = self.tube_length.val-0.1
+        self.transition_window.valmax = self.tube_length.val-self.point_start_expansion.valmax
+        xs = np.linspace(0, self.tube_length.val, int(self.number_sections.val))
 
 
-    def set_time(self,val):
-        self.actual_time = self.time_step.val
-        self.update_pressure_plot_()
+        point_of_linear_expansion = self.point_start_expansion.val + self.transition_window.val
 
+        length_expansion = self.tube_length.val - self.point_start_expansion.val
+        radius_end = np.tan(np.radians(self.expansion_angle.val)) * length_expansion + self.tube_base_radius.val
 
+        m = (radius_end - self.tube_base_radius.val) / length_expansion
+        ycross = self.tube_base_radius.val - m * self.point_start_expansion.val
+        value_point_of_linear_expansion = m * (point_of_linear_expansion) + ycross
 
+        a, b, c, d = sym.symbols(['a', 'b', 'c', 'd'])
+        y1 = a *  self.point_start_expansion.val ** 3 + b *  self.point_start_expansion.val ** 2 + c *  self.point_start_expansion.val + d
+        y2 = 3 * a *  self.point_start_expansion.val ** 2 + 2 * b *  self.point_start_expansion.val + c
+        y3 = a * point_of_linear_expansion ** 3 + b * point_of_linear_expansion ** 2 + c * point_of_linear_expansion + d
+        y4 = 3 * a * point_of_linear_expansion ** 2 + 2 * b * point_of_linear_expansion + c
 
-    def update_pressure_plot_(self):
-            theta = np.linspace(0, 2*np.pi, self.N_sec)
-            theta_grid, self.pressure_image = np.meshgrid(theta, np.append(self.total_pressure(self.actual_time)*self.scale, 0))
-            self.on_running_(self.actual_time, self.pressure_image, self.heart_image)
+        sol = sym.solve([y1 - self.tube_base_radius.val, y2 - 0, y3 - value_point_of_linear_expansion, y4 - m], dict=True)
+        sol = sol[0]
 
-    def on_running_(self, t, pmatrix, heartimage):
-        self.ax2.cla()
-        self.pressure_in_tube = self.ax2.plot_surface(self.geometry[0], self.geometry[1], self.geometry[2],
-                                                      facecolors=cm.Reds(self.norm(pmatrix)), alpha=1,
-                                                      vmin=self.min_pressure, vmax=self.max_pressure)
-        self.heart.set_data(heartimage)
-        self.ax1.cla()
-        self.ax1.plot(self.t_evaluation, self.input_shape)
-        self.ax1.scatter(t, self.input_value(t), color="b")
-        self.figure.canvas.draw_idle()
-        plt.pause(0.1)
+        xtrans = np.linspace(self.point_start_expansion.val, point_of_linear_expansion, 20)
+        ytrans = sol[a] * xtrans ** 3 + sol[b] * xtrans ** 2 + sol[c] * xtrans + sol[d]
+        xstraight = np.linspace(0, self.point_start_expansion.val, 50)
+        ystraight = np.ones(50) * self.tube_base_radius.val
+        xexp = np.linspace(point_of_linear_expansion, self.tube_length.val, 50)
+        yexp = m * xexp + ycross
+        x = np.hstack((xstraight, xtrans, xexp))
+        y = np.hstack((ystraight, ytrans, yexp))
+        f = interp1d(x, y)
 
-    def update_pressure_plot(self, t):
-        if t in self.t_sim[0:]:
-            self.actual_time = t
-            if self.frame_count < len(self.heart_image_filenames)-1:
-                self.frame_count += 1
-                self.heart_image = cv2.imread(self.heart_image_filenames[self.frame_count])[self.crop_y_start:self.crop_y_end, self.crop_x_start:self.crop_x_end]
-
-
-            else:
-                self.frame_count = 0
-                self.heart_image = cv2.imread(self.heart_image_filenames[self.frame_count])[self.crop_y_start:self.crop_y_end, self.crop_x_start:self.crop_x_end]
-
-            theta = np.linspace(0, 2*np.pi, self.N_sec)
-            theta_grid, self.pressure_image = np.meshgrid(theta, np.append(self.total_pressure(t)*self.scale, 0))
-
-            self.on_running(self.actual_time, self.pressure_image, self.heart_image)
-
-    def on_running(self, t, pmatrix, heartimage):
-        self.ax2.cla()
-        self.pressure_in_tube = self.ax2.plot_surface(self.geometry[0], self.geometry[1], self.geometry[2],
-                                                      facecolors=cm.Reds(self.norm(pmatrix)), alpha=1,
-                                                      vmin=self.min_pressure, vmax=self.max_pressure)
-        self.heart.set_data(heartimage)
-        self.ax1.scatter(t, self.input_value(t), color="b")
-        self.figure.canvas.draw_idle()
-        plt.pause(0.1)
-
-class VisualizingExtendedResults:
-    def __init__(self,pdic, pressure, pressure1, pressure2, radius, radius1, radius2, min_pressure, max_pressure):
-            self.total_pressure_initial = pressure
-            self.total_pressure_intermediate = pressure1
-            self.total_pressure_final = pressure2
-            self.pressure_title=pdic['pressure_title']
-            self.path_to_images = pdic['path_to_image']
-            self.heart_front_image_filenames = self.get_image_file_names(pdic['path_to_image'][0])
-            self.heart_side_image_filenames = self.get_image_file_names(pdic['path_to_image'][1])
-            self.number_of_image_frames = len(self.heart_front_image_filenames)
-            self.frame_count = 0
-            self.sample_time_vis = pdic['sample_time_visualization']
-            self.t_sim = pdic['t_evaluation'][::self.sample_time_vis]
-            self.N_sec = pdic['N_sec']
-            self.radius_initial = radius
-            self.radius_intermediate = radius1
-            self.radius_final = radius2
-            self.N_ypoints_for_pressure_image = pdic['N_ypoints_for_pressure_image']
-            self.structure_length = pdic['structure_length']
-            self.section_length = self.structure_length/self.N_sec
-            self.t_evaluation = pdic['t_evaluation']
-            self.simulation_time = self.t_evaluation[-1]
-            self.input_scale = 1*10**6
-            self.input_shape = np.array([pdic['inp_entrance'](t)*self.input_scale for t in pdic['t_evaluation']])
-            self.input_value =pdic['inp_entrance']
-            self.scale = pdic['scale']
-            self.min_pressure = float(min_pressure)*self.scale
-            self.max_pressure = float(max_pressure)*self.scale
-            self.crop_front_x_start = 580
-            self.crop_front_x_end = 1110
-            self.crop_front_y_start = 0
-            self.crop_front_y_end = 715
-            self.crop_side_x_start = 800
-            self.crop_side_x_end = 2100
-            self.crop_side_y_start = 50
-            self.crop_side_y_end = 1500
-            self.geometry1 = self.data_for_structure_along_z(0, self.radius_initial, np.max(self.radius_initial))
-            self.geometry2 = self.data_for_structure_along_z(1, self.radius_intermediate, np.max(self.radius_initial))
-            self.geometry3 = self.data_for_structure_along_z(2, self.radius_final, np.max(self.radius_initial))
-            self.initialize_demo_figure()
-
-
-
-
-    def data_for_structure_along_z(self, mult, radius, maxvalue):
-        z = np.linspace(0, self.structure_length*10**2, self.N_sec)
-        theta = np.linspace(0, 2 * np.pi, self.N_sec)
-        theta_grid, z_grid = np.meshgrid(theta, z)
-        varied_radius = radius*10**2
-        x_grid = (np.cos(theta_grid).T * varied_radius).T+mult*4*maxvalue*10**2
-        y_grid = (np.sin(theta_grid).T * varied_radius).T
-        return x_grid, y_grid, -z_grid
-
-    def get_image_file_names(self, path):
-        file_list = os.listdir(path)
-        file_list = sorted(file_list, key=lambda x: float(re.findall("(\d+)", x)[0]))
-        file_list = [os.path.join(path, file_list[i]) for i in range(0, len(file_list),1)]
-        return file_list
-
-    def initialize_demo_figure(self):
-        random_inital_pressure = np.linspace(self.min_pressure, self.max_pressure, self.N_sec)
-        theta = np.linspace(0, 2 * np.pi, self.N_sec)
-        theta_grid, pressure_grid = np.meshgrid(theta, random_inital_pressure)
-
-        self.figure = plt.figure(constrained_layout = True)
-
-        ellipse1 = Arc(xy=(252, 211), width=102, height=40,angle = 0, theta1=0, theta2=180,linestyle='--',
-                          edgecolor='b', fc='None', lw=1)
-        ellipse2 = Arc(xy=(252, 211), width=102, height=40, angle=0, theta1=180, theta2=360,
-                      edgecolor='b', fc='None', lw=1)
-
-        ellipse3= Arc(xy=(160, 266), width=75, height=35, angle=15, theta1=0, theta2=180, linestyle='--',
-                       edgecolor='b', fc='None', lw=1)
-        ellipse4 = Arc(xy=(160, 266), width=75, height=35, angle=15, theta1=180, theta2=360,
-                       edgecolor='b', fc='None', lw=1)
-        ellipse5 = Arc(xy=(150, 437), width=75, height=35, angle=15, theta1=0, theta2=180, linestyle='--',
-                       edgecolor='b', fc='None', lw=1)
-        ellipse6 = Arc(xy=(150, 437), width=75, height=35, angle=15, theta1=180, theta2=360,
-                       edgecolor='b', fc='None', lw=1)
-
-        self.figure.add_artist(lines.Line2D([0.188, 0.308], [0.543, 0.723],color='b', lw=1))
-        self.figure.add_artist(lines.Line2D([0.2255, 0.353], [0.538, 0.723],color='b', lw=1))
-
-        self.cat_logo = plt.subplot2grid((16, 35), (12, 0), colspan=2, rowspan=1)
-        self.flow_profile_fig = plt.subplot2grid((16, 35), (1, 13), colspan=7, rowspan=3)
-        self.clock = plt.subplot2grid((16, 35), (3, 10), colspan=2, rowspan=2)
-        self.heart_front = plt.subplot2grid((16, 35), (5, 3), rowspan=8, colspan=8)
-        self.heart_side = plt.subplot2grid((16, 35), (5, 11), rowspan=8, colspan=8)
-        self.dhm_logo = plt.subplot2grid((16, 35), (14, 0), rowspan=2, colspan=4)
-        self.mirmi_logo = plt.subplot2grid((16, 35), (14, 4), rowspan=2, colspan=4)
-        self.tum_logo = plt.subplot2grid((16, 35), (14, 8), rowspan=2, colspan=6)
-        self.tube = plt.subplot2grid((16, 35), (2, 20), rowspan=15, colspan=15, projection='3d')
-        self.cat_logo.imshow(cv2.cvtColor(cv2.imread(self.path_to_images[2]+r'\logo-cat-medic.jpg'), cv2.COLOR_BGR2RGB))
-        self.cat_logo.axis('off')
-
-
-        self.flow_profile,  = self.flow_profile_fig.plot(self.t_evaluation, self.input_shape)
-        self.set_actual_state_point, = self.flow_profile_fig.plot([0], [self.input_value(0)*self.input_scale], label='toto', ms=5, color='b', marker='o', ls='')
-        self.flow_profile_fig.set_ylabel("Blutmenge [ml/s]", fontsize = 20.0)
-        self.flow_profile_fig.set_xlabel("Zeit [s]", fontsize = 20.0)
-        self.clock.set_aspect('equal')
-        self.clock.imshow(
-            cv2.cvtColor(cv2.imread(self.path_to_images[2]+ r'\clock.jpg'), cv2.COLOR_BGR2RGB))
-        self.clock.axis('off')
-
-
-        self.heart_front_image = self.heart_front.imshow(
-            cv2.cvtColor(cv2.imread(self.heart_front_image_filenames[0]), cv2.COLOR_BGR2RGB))
-        self.heart_front.add_patch(ellipse1)
-        self.heart_front.add_patch(ellipse2)
-        self.heart_front.set_xlabel("Herz (anterior)",  fontsize = 20.0)
-
-
-        self.heart_side_image = self.heart_side.imshow(
-            cv2.cvtColor(cv2.imread(self.heart_side_image_filenames[0]), cv2.COLOR_BGR2RGB))
-        self.heart_side.add_patch(ellipse3)
-        self.heart_side.add_patch(ellipse4)
-        self.heart_side.add_patch(ellipse5)
-        self.heart_side.add_patch(ellipse6)
-        self.heart_side.set_xlabel("Herz (posterior)", fontsize = 20.0)
-
-
-
-        self.norm = matplotlib.colors.Normalize(vmin=self.min_pressure, vmax=self.max_pressure)
-
-        self.figure.add_artist(lines.Line2D([0.4145, 0.608], [0.5, 0.625], color='b', lw=1))
-        self.figure.add_artist(lines.Line2D([0.41, 0.608], [0.38, 0.285], color='b', lw=1))
-
-
-        self.dhm_logo.imshow(
-            cv2.cvtColor(cv2.imread(self.path_to_images[2]+r'\dhm.png'), cv2.COLOR_BGR2RGB))
-        self.dhm_logo.axis('off')
-
-        self.mirmi_logo.imshow(
-            cv2.cvtColor(cv2.imread(self.path_to_images[2]+r'\mirmi.png'), cv2.COLOR_BGR2RGB))
-        self.mirmi_logo.axis('off')
-
-        self.tum_logo.imshow(
-            cv2.cvtColor(cv2.imread(self.path_to_images[2]+r'\tum.png'), cv2.COLOR_BGR2RGB))
-        self.tum_logo.axis('off')
-
-        self.clock.set_xticks([])
-        self.clock.set_yticks([])
-
-        self.heart_front.set_xticks([])
-        self.heart_front.set_yticks([])
-
-        self.heart_side.set_xticks([])
-        self.heart_side.set_yticks([])
-
-        self.cat_logo.set_xticks([])
-        self.cat_logo.set_yticks([])
-
-        self.dhm_logo.set_xticks([])
-        self.dhm_logo.set_yticks([])
-
-        self.mirmi_logo.set_xticks([])
-        self.mirmi_logo.set_yticks([])
-
-        self.tum_logo.set_xticks([])
-        self.tum_logo.set_yticks([])
-        self.geometry_x_length = len(self.geometry1[0])-1
-        self.geometry_y_length = len(self.geometry1[1])-1
-        self.color_reshape_nr = self.geometry_x_length*self.geometry_y_length
-        self.tube1 = self.tube.plot_surface(self.geometry1[0], self.geometry1[1], self.geometry1[2],
-                               facecolors=cm.Reds(self.norm(pressure_grid)), alpha=1,
-                               vmin=self.min_pressure, vmax=self.max_pressure)
-        self.tube2 = self.tube.plot_surface(self.geometry2[0], self.geometry2[1], self.geometry2[2],
-                               facecolors=cm.Reds(self.norm(pressure_grid)), alpha=1,
-                               vmin=self.min_pressure, vmax=self.max_pressure)
-        self.tube3 = self.tube.plot_surface(self.geometry3[0], self.geometry3[1], self.geometry3[2],
-                               facecolors=cm.Reds(self.norm(pressure_grid)), alpha=1,
-                               vmin=self.min_pressure, vmax=self.max_pressure)
-
-        self.tube.set_box_aspect((np.ptp(np.hstack((self.geometry1[0], self.geometry2[0], self.geometry3[0]))),
-                                  np.ptp(np.hstack((self.geometry1[1], self.geometry2[1], self.geometry3[1]))),
-                                  np.ptp(np.hstack((self.geometry1[2], self.geometry2[2], self.geometry3[2])))))
-        self.colorMap = m = cm.ScalarMappable(cmap=cm.Reds, norm=self.norm)
-        m.set_array([])
-        position = self.figure.add_axes([0.7, 0.12, 0.2, 0.02])
-        clb = self.figure.colorbar(m, cax=position, orientation='horizontal')
-        clb.set_label(self.pressure_title, fontsize = 20, labelpad=10, y=1.05, rotation=0)
-        self.tube.set_yticks([])
-        self.tube.set_zticks([])
-        self.tube.set_xticks([0, 4 * np.max(self.radius_initial) * 10 ** 2, 8 * np.max(self.radius_initial) * 10 ** 2])
-        self.tube.set_xticklabels(["Hochgradige \n Engstelle", "Suboptimaler \n Stent", "Optimaler \n Stent"],
-                                  fontsize=20, minor=False)
-
-        self.tube.view_init(azim=-76, elev=9)
-        plt.subplots_adjust(bottom=0.01)
-        plt.subplots_adjust(left=0.025)
-        plt.subplots_adjust(right=1)
-        plt.subplots_adjust(top=0.995)
-        mng = plt.get_current_fig_manager()
-        mng.window.state("zoomed")
-        plt.draw()
-
-    def update_pressure_plot(self, repeat):
-        for j in range(0, repeat, 1):
-            for t in self.t_sim:
-                if self.frame_count < len(self.heart_front_image_filenames)-1:
-                    self.frame_count += 1
-                    self.heart_image_front = cv2.cvtColor(cv2.imread(self.heart_front_image_filenames[self.frame_count]), cv2.COLOR_BGR2RGB)
-                    self.heart_image_side = cv2.cvtColor(cv2.imread(self.heart_side_image_filenames[self.frame_count]),
-                                                          cv2.COLOR_BGR2RGB)
-
-                else:
-                    self.frame_count = 0
-                    self.heart_image_front = cv2.cvtColor(cv2.imread(self.heart_front_image_filenames[self.frame_count]),
-                                                          cv2.COLOR_BGR2RGB)
-                    self.heart_image_side = cv2.cvtColor(cv2.imread(self.heart_side_image_filenames[self.frame_count]),
-                                                         cv2.COLOR_BGR2RGB)
-                theta = np.linspace(0, 2*np.pi, self.N_sec)
-                theta_grid, self.pressure_image_initial = np.meshgrid(theta, self.total_pressure_initial(t)*self.scale)
-                theta_grid, self.pressure_image_intermediate = np.meshgrid(theta,
-                                                                      self.total_pressure_intermediate(t) * self.scale
-                                                                        )
-                theta_grid, self.pressure_image_final = np.meshgrid(theta,
-                                                                      self.total_pressure_final(t) * self.scale)
-                self.on_running(t, self.pressure_image_initial,self.pressure_image_intermediate, self.pressure_image_final, self.heart_image_front, self.heart_image_side)
-
-    def on_running(self, t, pmatrix,pmatrix1, pmatrix2, heartimage_front, heartimage_side):
-        # self.tube1.set(facecolors = self.colorMap.to_rgba(pmatrix[:, :]).reshape(pmatrix.shape[0]*pmatrix.shape[1], 4), edgecolors=self.colorMap.to_rgba(np.ones((pmatrix.shape[0],pmatrix.shape[1]))*self.max_pressure).reshape(pmatrix.shape[0]*pmatrix.shape[1], 4))
-        # self.tube2.set(facecolors=self.colorMap.to_rgba(pmatrix1[:-1, :-1]).reshape(self.color_reshape_nr, 4),
-        #                edgecolors=self.colorMap.to_rgba(pmatrix1[:-1, :-1]).reshape(self.color_reshape_nr, 4))
-        # self.tube3.set(facecolors=self.colorMap.to_rgba(pmatrix2[:-1, :-1]).reshape(self.color_reshape_nr, 4),
-        #                edgecolors=self.colorMap.to_rgba(pmatrix2[:-1, :-1]).reshape(self.color_reshape_nr, 4))
-        self.tube.cla()
-        self.tube.plot_surface(self.geometry1[0], self.geometry1[1], self.geometry1[2],
-                               facecolors=cm.Reds(self.norm(pmatrix)), alpha=1,
-                               vmin=self.min_pressure, vmax=self.max_pressure)
-        self.tube.plot_surface(self.geometry2[0], self.geometry2[1], self.geometry2[2],
-                               facecolors=cm.Reds(self.norm(pmatrix1)), alpha=1,
-                               vmin=self.min_pressure, vmax=self.max_pressure)
-        self.tube.plot_surface(self.geometry3[0], self.geometry3[1], self.geometry3[2],
-                               facecolors=cm.Reds(self.norm(pmatrix2)), alpha=1,
-                               vmin=self.min_pressure, vmax=self.max_pressure)
-        self.heart_front_image.set_data(heartimage_front)
-        self.heart_side_image.set_data(heartimage_side)
-        self.set_actual_state_point.set_xdata([t])
-        self.set_actual_state_point.set_ydata([self.input_value(t)*self.input_scale])
-        self.tube.set_yticks([])
-        self.tube.set_zticks([])
-        self.tube.set_xticks(
-            [0, 4 * np.max(self.radius_initial) * 10 ** 2, 8 * np.max(self.radius_initial) * 10 ** 2])
-        self.tube.set_xticklabels(["Hochgradige \n Engstelle", "Suboptimaler \n Stent", "Optimaler \n Stent"],
-                                  fontsize=20, minor=False)
-        self.figure.canvas.draw_idle()
-        # self.tube.set_axis_off()
-
-        plt.pause(0.01)
-
+        x = np.linspace(0, self.tube_length.val, self.number_sections.val)
+        self.radius = f(x)
+        self.data_for_structure_along_z()
+        self.ax.cla()
+        self.ax.plot_surface(self.geometry[0], self.geometry[1], self.geometry[2])
+        self.ax.set_box_aspect((np.ptp(self.geometry[0]), np.ptp(self.geometry[1]), np.ptp(self.geometry[2])))
+        self.fig.canvas.draw_idle()
+        return self.radius, self.point_start_expansion.val, self.transition_window.val, self.geometry
 
 class OneD_PHM:
     def __init__(self,pdic, demo = False, path_to_image = ''):
@@ -1010,6 +781,264 @@ class OneD_PHM:
 
         return dxdt
 
+class PlotResults:
+    def __init__(self, sim_results):
+        self.pressure = sim_results['interpolated_data']
+        self.sample_time = sim_results['t_evaluation']
+        self.input_shape = sim_results['inp_entrance']
+        self.axial_discretization = np.linspace(0, sim_results['structure_length'], sim_results['N_sec'])
 
+    def plot_pressure(self):
+        plt.figure()
+        plt.plot(self.axial_discretization, self.pressure(self.sample_time[-1]))
+
+
+
+class VisualizingExtendedResults:
+    def __init__(self,pdic, pressure, pressure1, pressure2, radius, radius1, radius2, min_pressure, max_pressure):
+            self.total_pressure_initial = pressure
+            self.total_pressure_intermediate = pressure1
+            self.total_pressure_final = pressure2
+            self.pressure_title=pdic['pressure_title']
+            self.path_to_images = pdic['path_to_image']
+            self.heart_front_image_filenames = self.get_image_file_names(pdic['path_to_image'][0])
+            self.heart_side_image_filenames = self.get_image_file_names(pdic['path_to_image'][1])
+            self.number_of_image_frames = len(self.heart_front_image_filenames)
+            self.frame_count = 0
+            self.sample_time_vis = pdic['sample_time_visualization']
+            self.t_sim = pdic['t_evaluation'][::self.sample_time_vis]
+            self.N_sec = pdic['N_sec']
+            self.radius_initial = radius
+            self.radius_intermediate = radius1
+            self.radius_final = radius2
+            self.N_ypoints_for_pressure_image = pdic['N_ypoints_for_pressure_image']
+            self.structure_length = pdic['structure_length']
+            self.section_length = self.structure_length/self.N_sec
+            self.t_evaluation = pdic['t_evaluation']
+            self.simulation_time = self.t_evaluation[-1]
+            self.input_scale = 1*10**6
+            self.input_shape = np.array([pdic['inp_entrance'](t)*self.input_scale for t in pdic['t_evaluation']])
+            self.input_value =pdic['inp_entrance']
+            self.scale = pdic['scale']
+            self.min_pressure = float(min_pressure)*self.scale
+            self.max_pressure = float(max_pressure)*self.scale
+            self.crop_front_x_start = 580
+            self.crop_front_x_end = 1110
+            self.crop_front_y_start = 0
+            self.crop_front_y_end = 715
+            self.crop_side_x_start = 800
+            self.crop_side_x_end = 2100
+            self.crop_side_y_start = 50
+            self.crop_side_y_end = 1500
+            self.geometry1 = self.data_for_structure_along_z(0, self.radius_initial, np.max(self.radius_initial))
+            self.geometry2 = self.data_for_structure_along_z(1, self.radius_intermediate, np.max(self.radius_initial))
+            self.geometry3 = self.data_for_structure_along_z(2, self.radius_final, np.max(self.radius_initial))
+            self.initialize_demo_figure()
+
+
+
+
+    def data_for_structure_along_z(self, mult, radius, maxvalue):
+        z = np.linspace(0, self.structure_length*10**2, self.N_sec)
+        theta = np.linspace(0, 2 * np.pi, self.N_sec)
+        theta_grid, z_grid = np.meshgrid(theta, z)
+        varied_radius = radius*10**2
+        x_grid = (np.cos(theta_grid).T * varied_radius).T+mult*4*maxvalue*10**2
+        y_grid = (np.sin(theta_grid).T * varied_radius).T
+        return x_grid, y_grid, -z_grid
+
+    def get_image_file_names(self, path):
+        file_list = os.listdir(path)
+        file_list = sorted(file_list, key=lambda x: float(re.findall("(\d+)", x)[0]))
+        file_list = [os.path.join(path, file_list[i]) for i in range(0, len(file_list),1)]
+        return file_list
+
+    def initialize_demo_figure(self):
+        random_inital_pressure = np.linspace(self.min_pressure, self.max_pressure, self.N_sec)
+        theta = np.linspace(0, 2 * np.pi, self.N_sec)
+        theta_grid, pressure_grid = np.meshgrid(theta, random_inital_pressure)
+
+        self.figure = plt.figure(constrained_layout = True)
+
+        ellipse1 = Arc(xy=(252, 211), width=102, height=40,angle = 0, theta1=0, theta2=180,linestyle='--',
+                          edgecolor='b', fc='None', lw=1)
+        ellipse2 = Arc(xy=(252, 211), width=102, height=40, angle=0, theta1=180, theta2=360,
+                      edgecolor='b', fc='None', lw=1)
+
+        ellipse3= Arc(xy=(160, 266), width=75, height=35, angle=15, theta1=0, theta2=180, linestyle='--',
+                       edgecolor='b', fc='None', lw=1)
+        ellipse4 = Arc(xy=(160, 266), width=75, height=35, angle=15, theta1=180, theta2=360,
+                       edgecolor='b', fc='None', lw=1)
+        ellipse5 = Arc(xy=(150, 437), width=75, height=35, angle=15, theta1=0, theta2=180, linestyle='--',
+                       edgecolor='b', fc='None', lw=1)
+        ellipse6 = Arc(xy=(150, 437), width=75, height=35, angle=15, theta1=180, theta2=360,
+                       edgecolor='b', fc='None', lw=1)
+
+        self.figure.add_artist(lines.Line2D([0.188, 0.308], [0.543, 0.723],color='b', lw=1))
+        self.figure.add_artist(lines.Line2D([0.2255, 0.353], [0.538, 0.723],color='b', lw=1))
+
+        self.cat_logo = plt.subplot2grid((16, 35), (12, 0), colspan=2, rowspan=1)
+        self.flow_profile_fig = plt.subplot2grid((16, 35), (1, 13), colspan=7, rowspan=3)
+        self.clock = plt.subplot2grid((16, 35), (3, 10), colspan=2, rowspan=2)
+        self.heart_front = plt.subplot2grid((16, 35), (5, 3), rowspan=8, colspan=8)
+        self.heart_side = plt.subplot2grid((16, 35), (5, 11), rowspan=8, colspan=8)
+        self.dhm_logo = plt.subplot2grid((16, 35), (14, 0), rowspan=2, colspan=4)
+        self.mirmi_logo = plt.subplot2grid((16, 35), (14, 4), rowspan=2, colspan=4)
+        self.tum_logo = plt.subplot2grid((16, 35), (14, 8), rowspan=2, colspan=6)
+        self.tube = plt.subplot2grid((16, 35), (2, 20), rowspan=15, colspan=15, projection='3d')
+        self.cat_logo.imshow(cv2.cvtColor(cv2.imread(self.path_to_images[2]+r'\logo-cat-medic.jpg'), cv2.COLOR_BGR2RGB))
+        self.cat_logo.axis('off')
+
+
+        self.flow_profile,  = self.flow_profile_fig.plot(self.t_evaluation, self.input_shape)
+        self.set_actual_state_point, = self.flow_profile_fig.plot([0], [self.input_value(0)*self.input_scale], label='toto', ms=5, color='b', marker='o', ls='')
+        self.flow_profile_fig.set_ylabel("Blutmenge [ml/s]", fontsize = 20.0)
+        self.flow_profile_fig.set_xlabel("Zeit [s]", fontsize = 20.0)
+        self.clock.set_aspect('equal')
+        self.clock.imshow(
+            cv2.cvtColor(cv2.imread(self.path_to_images[2]+ r'\clock.jpg'), cv2.COLOR_BGR2RGB))
+        self.clock.axis('off')
+
+
+        self.heart_front_image = self.heart_front.imshow(
+            cv2.cvtColor(cv2.imread(self.heart_front_image_filenames[0]), cv2.COLOR_BGR2RGB))
+        self.heart_front.add_patch(ellipse1)
+        self.heart_front.add_patch(ellipse2)
+        self.heart_front.set_xlabel("Herz (anterior)",  fontsize = 20.0)
+
+
+        self.heart_side_image = self.heart_side.imshow(
+            cv2.cvtColor(cv2.imread(self.heart_side_image_filenames[0]), cv2.COLOR_BGR2RGB))
+        self.heart_side.add_patch(ellipse3)
+        self.heart_side.add_patch(ellipse4)
+        self.heart_side.add_patch(ellipse5)
+        self.heart_side.add_patch(ellipse6)
+        self.heart_side.set_xlabel("Herz (posterior)", fontsize = 20.0)
+
+
+
+        self.norm = matplotlib.colors.Normalize(vmin=self.min_pressure, vmax=self.max_pressure)
+
+        self.figure.add_artist(lines.Line2D([0.4145, 0.608], [0.5, 0.625], color='b', lw=1))
+        self.figure.add_artist(lines.Line2D([0.41, 0.608], [0.38, 0.285], color='b', lw=1))
+
+
+        self.dhm_logo.imshow(
+            cv2.cvtColor(cv2.imread(self.path_to_images[2]+r'\dhm.png'), cv2.COLOR_BGR2RGB))
+        self.dhm_logo.axis('off')
+
+        self.mirmi_logo.imshow(
+            cv2.cvtColor(cv2.imread(self.path_to_images[2]+r'\mirmi.png'), cv2.COLOR_BGR2RGB))
+        self.mirmi_logo.axis('off')
+
+        self.tum_logo.imshow(
+            cv2.cvtColor(cv2.imread(self.path_to_images[2]+r'\tum.png'), cv2.COLOR_BGR2RGB))
+        self.tum_logo.axis('off')
+
+        self.clock.set_xticks([])
+        self.clock.set_yticks([])
+
+        self.heart_front.set_xticks([])
+        self.heart_front.set_yticks([])
+
+        self.heart_side.set_xticks([])
+        self.heart_side.set_yticks([])
+
+        self.cat_logo.set_xticks([])
+        self.cat_logo.set_yticks([])
+
+        self.dhm_logo.set_xticks([])
+        self.dhm_logo.set_yticks([])
+
+        self.mirmi_logo.set_xticks([])
+        self.mirmi_logo.set_yticks([])
+
+        self.tum_logo.set_xticks([])
+        self.tum_logo.set_yticks([])
+        self.geometry_x_length = len(self.geometry1[0])-1
+        self.geometry_y_length = len(self.geometry1[1])-1
+        self.color_reshape_nr = self.geometry_x_length*self.geometry_y_length
+        self.tube1 = self.tube.plot_surface(self.geometry1[0], self.geometry1[1], self.geometry1[2],
+                               facecolors=cm.Reds(self.norm(pressure_grid)), alpha=1,
+                               vmin=self.min_pressure, vmax=self.max_pressure)
+        self.tube2 = self.tube.plot_surface(self.geometry2[0], self.geometry2[1], self.geometry2[2],
+                               facecolors=cm.Reds(self.norm(pressure_grid)), alpha=1,
+                               vmin=self.min_pressure, vmax=self.max_pressure)
+        self.tube3 = self.tube.plot_surface(self.geometry3[0], self.geometry3[1], self.geometry3[2],
+                               facecolors=cm.Reds(self.norm(pressure_grid)), alpha=1,
+                               vmin=self.min_pressure, vmax=self.max_pressure)
+
+        self.tube.set_box_aspect((np.ptp(np.hstack((self.geometry1[0], self.geometry2[0], self.geometry3[0]))),
+                                  np.ptp(np.hstack((self.geometry1[1], self.geometry2[1], self.geometry3[1]))),
+                                  np.ptp(np.hstack((self.geometry1[2], self.geometry2[2], self.geometry3[2])))))
+        self.colorMap = m = cm.ScalarMappable(cmap=cm.Reds, norm=self.norm)
+        m.set_array([])
+        position = self.figure.add_axes([0.7, 0.12, 0.2, 0.02])
+        clb = self.figure.colorbar(m, cax=position, orientation='horizontal')
+        clb.set_label(self.pressure_title, fontsize = 20, labelpad=10, y=1.05, rotation=0)
+        self.tube.set_yticks([])
+        self.tube.set_zticks([])
+        self.tube.set_xticks([0, 4 * np.max(self.radius_initial) * 10 ** 2, 8 * np.max(self.radius_initial) * 10 ** 2])
+        self.tube.set_xticklabels(["Hochgradige \n Engstelle", "Suboptimaler \n Stent", "Optimaler \n Stent"],
+                                  fontsize=20, minor=False)
+
+        self.tube.view_init(azim=-76, elev=9)
+        plt.subplots_adjust(bottom=0.01)
+        plt.subplots_adjust(left=0.025)
+        plt.subplots_adjust(right=1)
+        plt.subplots_adjust(top=0.995)
+        mng = plt.get_current_fig_manager()
+        mng.window.state("zoomed")
+        plt.draw()
+
+    def update_pressure_plot(self, repeat):
+        for j in range(0, repeat, 1):
+            for t in self.t_sim:
+                if self.frame_count < len(self.heart_front_image_filenames)-1:
+                    self.frame_count += 1
+                    self.heart_image_front = cv2.cvtColor(cv2.imread(self.heart_front_image_filenames[self.frame_count]), cv2.COLOR_BGR2RGB)
+                    self.heart_image_side = cv2.cvtColor(cv2.imread(self.heart_side_image_filenames[self.frame_count]),
+                                                          cv2.COLOR_BGR2RGB)
+
+                else:
+                    self.frame_count = 0
+                    self.heart_image_front = cv2.cvtColor(cv2.imread(self.heart_front_image_filenames[self.frame_count]),
+                                                          cv2.COLOR_BGR2RGB)
+                    self.heart_image_side = cv2.cvtColor(cv2.imread(self.heart_side_image_filenames[self.frame_count]),
+                                                         cv2.COLOR_BGR2RGB)
+                theta = np.linspace(0, 2*np.pi, self.N_sec)
+                theta_grid, self.pressure_image_initial = np.meshgrid(theta, self.total_pressure_initial(t)*self.scale)
+                theta_grid, self.pressure_image_intermediate = np.meshgrid(theta,
+                                                                      self.total_pressure_intermediate(t) * self.scale
+                                                                        )
+                theta_grid, self.pressure_image_final = np.meshgrid(theta,
+                                                                      self.total_pressure_final(t) * self.scale)
+                self.on_running(t, self.pressure_image_initial,self.pressure_image_intermediate, self.pressure_image_final, self.heart_image_front, self.heart_image_side)
+
+    def on_running(self, t, pmatrix,pmatrix1, pmatrix2, heartimage_front, heartimage_side):
+        self.tube.cla()
+        self.tube.plot_surface(self.geometry1[0], self.geometry1[1], self.geometry1[2],
+                               facecolors=cm.Reds(self.norm(pmatrix)), alpha=1,
+                               vmin=self.min_pressure, vmax=self.max_pressure)
+        self.tube.plot_surface(self.geometry2[0], self.geometry2[1], self.geometry2[2],
+                               facecolors=cm.Reds(self.norm(pmatrix1)), alpha=1,
+                               vmin=self.min_pressure, vmax=self.max_pressure)
+        self.tube.plot_surface(self.geometry3[0], self.geometry3[1], self.geometry3[2],
+                               facecolors=cm.Reds(self.norm(pmatrix2)), alpha=1,
+                               vmin=self.min_pressure, vmax=self.max_pressure)
+        self.heart_front_image.set_data(heartimage_front)
+        self.heart_side_image.set_data(heartimage_side)
+        self.set_actual_state_point.set_xdata([t])
+        self.set_actual_state_point.set_ydata([self.input_value(t)*self.input_scale])
+        self.tube.set_yticks([])
+        self.tube.set_zticks([])
+        self.tube.set_xticks(
+            [0, 4 * np.max(self.radius_initial) * 10 ** 2, 8 * np.max(self.radius_initial) * 10 ** 2])
+        self.tube.set_xticklabels(["Hochgradige \n Engstelle", "Suboptimaler \n Stent", "Optimaler \n Stent"],
+                                  fontsize=20, minor=False)
+        self.figure.canvas.draw_idle()
+        # self.tube.set_axis_off()
+
+        plt.pause(0.01)
 
 
