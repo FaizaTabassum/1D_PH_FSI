@@ -8,10 +8,11 @@ import helper_functions
 sys.path.pop()
 
 
-model_name = "r1l8g2f12"
+model_name = "three_one"
 path = r"C:\Users\Faiza\Desktop\1D_PH_FSI\results"
-geometric_data = np.load(path+'\output.npy', allow_pickle=True)
+geometric_data = np.load(path+'\three_one.npy', allow_pickle=True)
 radius = geometric_data['radius']
+print(radius)
 tube_length = geometric_data['tube_length']
 number_sections = geometric_data['number_sections']
 x = np.linspace(0, tube_length, number_sections)

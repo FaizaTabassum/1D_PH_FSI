@@ -41,7 +41,7 @@ class BoundaryDefinitions:
 
     @property
     def inp_const(self):
-        inp_max = 300 * self.scale
+        inp_max = 100 * self.scale
         tinp = 3*10**-3
         return lambda t: (inp_max / 2) * (1 - np.cos(np.pi * t / tinp)) if t < tinp else inp_max
 
@@ -236,6 +236,7 @@ def run_simulation(radius, tube_length, number_sections, path_to_images,path_to_
     total_pressure = PHFSI.total_pressure
     step_time = np.reshape(PHFSI.step_time, (-1,))
     parameter['interpolated_data'] = interp1d(step_time, total_pressure, axis=0)
+    parameter['velocity'] = interp1d(step_time, PHFSI.velocity, axis=0)
     return parameter, PHFSI, sol
 
 class InputDefinitions:
@@ -275,7 +276,7 @@ class InputDefinitions:
         self.tube_base_radius = Slider(ax=self.ax_r, label='radius ', valmin=0, valmax=5.0, valinit=1.0,
                                   valfmt=' %1.1f cm', facecolor='#cc7000')
         self.tube_length = Slider(ax=self.ax_l, label='length ', valmin=0, valmax=10,
-                             valinit=5, valfmt='%1.1f cm', facecolor='#cc7000')
+                             valinit=10, valfmt='%1.1f cm', facecolor='#cc7000')
         self.stenosis_position = Slider(ax=self.ax_s, label='stenosis position ', valmin=-5, valmax=5,
                                    valinit=0, valfmt=' %1.1f cm', facecolor='#cc7000')
         self.stenosis_radius_proportion = Slider(ax=self.ax_d, label='stenosis radius proportion ', valmin=-0.99, valmax=0.99,
@@ -329,10 +330,10 @@ class InputDefinitions:
 
     def start_program(self, val):
         self.tube_base_radius_val = copy.copy(self.tube_base_radius.val)
-        self.tube_base_radius, self.stenosis_position, self.stenosis_expansion, self.geometry = self.stenosis(2)
+        self.tube_base_radius, self.position, self.window, self.geometry = self.stenosis(2)
         self.tube_length = self.tube_length.val
         self.number_sections = self.number_sections.val
-        self.stenosis_radius_proportion = self.stenosis_radius_proportion.val
+        self.proportion = self.stenosis_radius_proportion.val
         self.flow_profile_path = self.flow_profile_path
         self.save_data_path = self.save_data_path
         plt.close('all')
@@ -405,10 +406,13 @@ class InputDefinitionsStraightExpansion:
         self.ax_point_start_expansion = self.fig.add_axes([0.2, 0.66, 0.2, 0.05])
         self.ax_point_start_expansion.spines['top'].set_visible(True)
         self.ax_point_start_expansion.spines['right'].set_visible(True)
-        self.ax_angle = self.fig.add_axes([0.2, 0.60, 0.2, 0.05])
+        self.ax_point_end_expansion = self.fig.add_axes([0.2, 0.6, 0.2, 0.05])
+        self.ax_point_end_expansion.spines['top'].set_visible(True)
+        self.ax_point_end_expansion.spines['right'].set_visible(True)
+        self.ax_angle = self.fig.add_axes([0.2, 0.54, 0.2, 0.05])
         self.ax_angle.spines['top'].set_visible(True)
         self.ax_angle.spines['right'].set_visible(True)
-        self.ax_window = self.fig.add_axes([0.2, 0.54, 0.2, 0.05])
+        self.ax_window = self.fig.add_axes([0.2, 0.5, 0.2, 0.05])
         self.ax_window.spines['top'].set_visible(True)
         self.ax_window.spines['right'].set_visible(True)
         self.ax_start_button = self.fig.add_axes([0.95, 0.01, 0.05, 0.05])
@@ -416,18 +420,21 @@ class InputDefinitionsStraightExpansion:
         self.ax_load_button = self.fig.add_axes([0.85, 0.01, 0.05, 0.05])
         self.ax = self.fig.add_axes([0, 0, 0.5, 0.5], projection='3d')
 
-        self.number_sections = Slider(ax=self.ax_number_sections, label='#sections ', valmin=10, valmax=200, valinit=35,
+        self.number_sections = Slider(ax=self.ax_number_sections, label='#sections ', valmin=10, valmax=200, valinit=100,
                                       valfmt='%d', facecolor='#cc7000', valstep=1)
-        self.tube_base_radius = Slider(ax=self.ax_straight_radius, label='radius ', valmin=0.1, valmax=5.0, valinit=1.0,
+        self.tube_base_radius = Slider(ax=self.ax_straight_radius, label='radius ', valmin=0.1, valmax=5.0, valinit=1,
                                        valfmt=' %1.1f cm', facecolor='#cc7000')
         self.tube_length = Slider(ax=self.ax_structure_length, label='length ', valmin=0.1, valmax=20,
-                                  valinit=5, valfmt='%1.1f cm', facecolor='#cc7000')
+                                  valinit=10.0, valfmt='%1.1f cm', facecolor='#cc7000')
         self.point_start_expansion = Slider(ax=self.ax_point_start_expansion, label='start expansion ', valmin=0.1, valmax=19.9,
-                                        valinit=0, valfmt=' %1.1f cm', facecolor='#cc7000')
+                                        valinit=4.0, valfmt=' %1.1f cm', facecolor='#cc7000')
+        self.point_end_expansion = Slider(ax=self.ax_point_end_expansion, label='start expansion ', valmin=0.1,
+                                            valmax=19.9,
+                                            valinit=7.0, valfmt=' %1.1f cm', facecolor='#cc7000')
         self.expansion_angle = Slider(ax=self.ax_angle, label='expansion angle ', valmin=0,
-                                                 valmax=45,
-                                                 valinit=0, valfmt=' %1.1f cm', facecolor='#cc7000')
-        self.transition_window = Slider(ax=self.ax_window, label='transition window ',valmin=0.1, valmax=20, valinit=2,valfmt=' %1.1f cm', facecolor='#cc7000')
+                                                 valmax=70,
+                                                 valinit=1, valfmt=' %1.1f cm', facecolor='#cc7000')
+        self.transition_window = Slider(ax=self.ax_window, label='transition window ',valmin=0.1, valmax=20, valinit=0.1,valfmt=' %1.1f cm', facecolor='#cc7000')
         self.play_button = Button(ax=self.ax_start_button, label='', image=ICON_PLAY)
         self.load_button = Button(ax=self.ax_load_button, label="", image=ICON_LOAD)
         self.save_button = Button(ax=self.ax_save_button, label="", image=ICON_SAVE)
@@ -435,7 +442,7 @@ class InputDefinitionsStraightExpansion:
         self.x = np.linspace(0, self.tube_length.val, self.number_sections.val)
 
         self.tube_base_radius_val = np.ones(self.number_sections.val) * self.tube_base_radius.val
-        self.radius = np.ones(self.number_sections.val)
+        self.radius = self.determine_initial_radius()
         self.data_for_structure_along_z()
         self.ax.plot_surface(self.geometry[0], self.geometry[1], self.geometry[2], alpha=1)
         self.ax.set_box_aspect((np.ptp(self.geometry[0]), np.ptp(self.geometry[1]), np.ptp(self.geometry[2])))
@@ -454,6 +461,70 @@ class InputDefinitionsStraightExpansion:
         self.save_button.on_clicked(self.save_data)
         plt.show()
 
+    def determine_initial_radius(self):
+        xs = np.linspace(0, self.tube_length.val, int(self.number_sections.val))
+
+        point_start_linear_expansion = self.point_start_expansion.val + self.transition_window.val
+        point_end_linear_expansion = self.point_end_expansion.val - self.transition_window.val
+        point_start_exp = self.point_start_expansion.val -self.transition_window.val
+        point_end_exp = self.point_end_expansion.val + self.transition_window.val
+
+        length_expansion = self.point_end_expansion.val - self.point_start_expansion.val
+        radius_end = np.tan(np.radians(self.expansion_angle.val)) * length_expansion + self.tube_base_radius.val
+
+        m = (radius_end - self.tube_base_radius.val) / length_expansion
+        ycross = self.tube_base_radius.val - m * self.point_start_expansion.val
+        value_point_start_linear_expansion = m * (point_start_linear_expansion) + ycross
+        value_point_end_linear_expansion = m * (point_end_linear_expansion) + ycross
+
+        a, b, c, d = sym.symbols(['a', 'b', 'c', 'd'])
+        y1_1 = a * point_start_exp ** 3 + b * point_start_exp ** 2 + c * point_start_exp + d
+        y1_2 = 3 * a * point_start_exp ** 2 + 2 * b * point_start_exp + c
+        y1_3 = a * point_start_linear_expansion ** 3 + b * point_start_linear_expansion ** 2 + c * point_start_linear_expansion + d
+        y1_4 = 3 * a * point_start_linear_expansion ** 2 + 2 * b * point_start_linear_expansion + c
+        sol_start = sym.solve(
+            [y1_1 - self.tube_base_radius.val, y1_2 - 0, y1_3 - value_point_start_linear_expansion, y1_4 - m],
+            dict=True)
+        sol_start = sol_start[0]
+        a, b, c, d = sym.symbols(['a', 'b', 'c', 'd'])
+        y2_1 = a * point_end_exp ** 3 + b * point_end_exp ** 2 + c * point_end_exp + d
+        y2_2 = 3 * a * point_end_exp ** 2 + 2 * b * point_end_exp + c
+        y2_3 = a * point_end_linear_expansion ** 3 + b * point_end_linear_expansion ** 2 + c * point_end_linear_expansion + d
+        y2_4 = 3 * a * point_end_linear_expansion ** 2 + 2 * b * point_end_linear_expansion + c
+
+
+        sol_end = sym.solve([y2_1 - radius_end, y2_2 - 0, y2_3 - value_point_end_linear_expansion, y2_4 - m],
+                        dict=True)
+
+        sol_end = sol_end[0]
+
+        xstraight_entrance = np.linspace(0, point_start_exp, 50)
+        ystraight_entrance = np.ones(50) * self.tube_base_radius.val
+
+        xtrans_entrance = np.linspace(point_start_exp, point_start_linear_expansion, 50)
+        ytrans_entrance = sol_start[a] * xtrans_entrance ** 3 + sol_start[b] * xtrans_entrance ** 2 + sol_start[c] * xtrans_entrance + sol_start[d]
+
+        xexp = np.linspace(point_start_linear_expansion,point_end_linear_expansion, 50)
+        yexp = m * xexp + ycross
+
+        xtrans_exit = np.linspace(point_end_linear_expansion, point_end_exp, 50)
+        ytrans_exit = sol_end[a] * xtrans_exit ** 3 + sol_end[b] * xtrans_exit ** 2 + sol_end[c] * xtrans_exit + sol_end[d]
+
+        xstraight_exit = np.linspace(point_end_exp, self.tube_length.val, 50)
+        ystraight_exit = np.ones(50) * radius_end
+
+
+
+
+        x = np.hstack((xstraight_entrance, xtrans_entrance, xexp, xtrans_exit, xstraight_exit))
+        y = np.hstack((ystraight_entrance, ytrans_entrance, yexp, ytrans_exit, ystraight_exit))
+        plt.figure()
+        plt.plot(x, y)
+        f = interp1d(x, y)
+
+        x = np.linspace(0, self.tube_length.val, self.number_sections.val)
+        self.radius = f(x)
+        return self.radius
 
     def load_flow_input_file(self, val):
         self.flow_profile_path = fd.askopenfilename()
@@ -466,10 +537,10 @@ class InputDefinitionsStraightExpansion:
 
     def start_program(self, val):
         self.tube_base_radius_val = copy.copy(self.tube_base_radius.val)
-        self.tube_base_radius, self.point_start_expansion, self.transition_window, self.geometry = self.func_straight_expansion(2)
+        self.tube_base_radius, self.position, self.window, self.geometry = self.func_straight_expansion(2)
         self.tube_length = self.tube_length.val
         self.number_sections = self.number_sections.val
-        self.expansion_angle = self.expansion_angle.val
+        self.proportion = self.expansion_angle.val
         self.flow_profile_path = self.flow_profile_path
         self.save_data_path = self.save_data_path
         plt.close('all')
@@ -488,35 +559,61 @@ class InputDefinitionsStraightExpansion:
         self.point_start_expansion.valmin = 0
         self.point_start_expansion.valmax = self.tube_length.val-0.1
         self.transition_window.valmax = self.tube_length.val-self.point_start_expansion.valmax
+
         xs = np.linspace(0, self.tube_length.val, int(self.number_sections.val))
 
+        point_start_linear_expansion = self.point_start_expansion.val + self.transition_window.val
+        point_end_linear_expansion = self.point_end_expansion.val - self.transition_window.val
+        point_start_exp = self.point_start_expansion.val - self.transition_window.val
+        point_end_exp = self.point_end_expansion.val + self.transition_window.val
 
-        point_of_linear_expansion = self.point_start_expansion.val + self.transition_window.val
-
-        length_expansion = self.tube_length.val - self.point_start_expansion.val
+        length_expansion = self.point_end_expansion.val - self.point_start_expansion.val
         radius_end = np.tan(np.radians(self.expansion_angle.val)) * length_expansion + self.tube_base_radius.val
 
         m = (radius_end - self.tube_base_radius.val) / length_expansion
         ycross = self.tube_base_radius.val - m * self.point_start_expansion.val
-        value_point_of_linear_expansion = m * (point_of_linear_expansion) + ycross
+        value_point_start_linear_expansion = m * (point_start_linear_expansion) + ycross
+        value_point_end_linear_expansion = m * (point_end_linear_expansion) + ycross
 
         a, b, c, d = sym.symbols(['a', 'b', 'c', 'd'])
-        y1 = a *  self.point_start_expansion.val ** 3 + b *  self.point_start_expansion.val ** 2 + c *  self.point_start_expansion.val + d
-        y2 = 3 * a *  self.point_start_expansion.val ** 2 + 2 * b *  self.point_start_expansion.val + c
-        y3 = a * point_of_linear_expansion ** 3 + b * point_of_linear_expansion ** 2 + c * point_of_linear_expansion + d
-        y4 = 3 * a * point_of_linear_expansion ** 2 + 2 * b * point_of_linear_expansion + c
+        y1_1 = a * point_start_exp ** 3 + b * point_start_exp ** 2 + c * point_start_exp + d
+        y1_2 = 3 * a * point_start_exp ** 2 + 2 * b * point_start_exp + c
+        y1_3 = a * point_start_linear_expansion ** 3 + b * point_start_linear_expansion ** 2 + c * point_start_linear_expansion + d
+        y1_4 = 3 * a * point_start_linear_expansion ** 2 + 2 * b * point_start_linear_expansion + c
+        sol_start = sym.solve(
+            [y1_1 - self.tube_base_radius.val, y1_2 - 0, y1_3 - value_point_start_linear_expansion, y1_4 - m],
+            dict=True)
+        sol_start = sol_start[0]
+        a, b, c, d = sym.symbols(['a', 'b', 'c', 'd'])
+        y2_1 = a * point_end_exp ** 3 + b * point_end_exp ** 2 + c * point_end_exp + d
+        y2_2 = 3 * a * point_end_exp ** 2 + 2 * b * point_end_exp + c
+        y2_3 = a * point_end_linear_expansion ** 3 + b * point_end_linear_expansion ** 2 + c * point_end_linear_expansion + d
+        y2_4 = 3 * a * point_end_linear_expansion ** 2 + 2 * b * point_end_linear_expansion + c
 
-        sol = sym.solve([y1 - self.tube_base_radius.val, y2 - 0, y3 - value_point_of_linear_expansion, y4 - m], dict=True)
-        sol = sol[0]
+        sol_end = sym.solve([y2_1 - radius_end, y2_2 - 0, y2_3 - value_point_end_linear_expansion, y2_4 - m],
+                            dict=True)
 
-        xtrans = np.linspace(self.point_start_expansion.val, point_of_linear_expansion, 20)
-        ytrans = sol[a] * xtrans ** 3 + sol[b] * xtrans ** 2 + sol[c] * xtrans + sol[d]
-        xstraight = np.linspace(0, self.point_start_expansion.val, 50)
-        ystraight = np.ones(50) * self.tube_base_radius.val
-        xexp = np.linspace(point_of_linear_expansion, self.tube_length.val, 50)
+        sol_end = sol_end[0]
+
+        xstraight_entrance = np.linspace(0, point_start_exp, 50)
+        ystraight_entrance = np.ones(50) * self.tube_base_radius.val
+
+        xtrans_entrance = np.linspace(point_start_exp, point_start_linear_expansion, 50)
+        ytrans_entrance = sol_start[a] * xtrans_entrance ** 3 + sol_start[b] * xtrans_entrance ** 2 + sol_start[
+            c] * xtrans_entrance + sol_start[d]
+
+        xexp = np.linspace(point_start_linear_expansion, point_end_linear_expansion, 50)
         yexp = m * xexp + ycross
-        x = np.hstack((xstraight, xtrans, xexp))
-        y = np.hstack((ystraight, ytrans, yexp))
+
+        xtrans_exit = np.linspace(point_end_linear_expansion, point_end_exp, 50)
+        ytrans_exit = sol_end[a] * xtrans_exit ** 3 + sol_end[b] * xtrans_exit ** 2 + sol_end[c] * xtrans_exit + \
+                      sol_end[d]
+
+        xstraight_exit = np.linspace(point_end_exp, self.tube_length.val, 50)
+        ystraight_exit = np.ones(50) * radius_end
+
+        x = np.hstack((xstraight_entrance, xtrans_entrance, xexp, xtrans_exit, xstraight_exit))
+        y = np.hstack((ystraight_entrance, ytrans_entrance, yexp, ytrans_exit, ystraight_exit))
         f = interp1d(x, y)
 
         x = np.linspace(0, self.tube_length.val, self.number_sections.val)
@@ -568,7 +665,8 @@ class OneD_PHM:
         self.geo_dissipation = pdic['geo_dissipation']
         self.vis_dissipation = pdic['vis_dissipation']
         self.geo_dissipation_factor = pdic['geo_factor']
-        self.vis_dissipation_factor = pdic['vis_factor'] * 2 * self.section_length / self.radius
+        # *2 * self.section_length / self.radius
+        self.vis_dissipation_factor = pdic['vis_factor']*2 * self.section_length / self.radius
 
         self.structure_mass = np.multiply(np.pi * pdic['structure_density'] * self.radius,  pdic['wall_thickness'] * self.section_length * np.ones(self.N_sec))
         self.structure_r_dissipation = pdic['structure_r_dissipation'] * np.ones(self.N_sec)
@@ -580,6 +678,9 @@ class OneD_PHM:
         self.t_evaluation = pdic['t_evaluation']
         self.pressure_at_0 = 0
         self.total_pressure = np.zeros((self.N_sec))
+        self.static_pressure = np.zeros((self.N_sec))
+        self.dynamic_pressure = np.zeros((self.N_sec))
+        self.velocity = np.zeros((self.N_sec))
         self.requested_data_over_tube = pdic['requested_data_over_tube']
         self.requested_data_at_boundaries = pdic['requested_data_at_boundaries']
         self.evaluate_timepoint = False
@@ -729,6 +830,8 @@ class OneD_PHM:
         if self.vis_dissipation == False:
             loss_vis = loss_vis * 0
 
+
+
         R_f_geo = np.diag(A_cross * loss_g * (self.initial_fluid_density / 2) * (
             np.abs(fluid_mom / (self.initial_fluid_density * V_sec))))
         R_f_vis = np.diag(A_cross * loss_vis * (self.initial_fluid_density / 2) * (
@@ -778,6 +881,9 @@ class OneD_PHM:
             self.step_time = np.vstack((self.step_time, t))
             self.pressure_at_0 = np.vstack((self.pressure_at_0, static_pressure[0] + dynamic_pressure[0]))
             self.total_pressure = np.vstack((self.total_pressure, static_pressure+dynamic_pressure))
+            self.static_pressure = np.vstack((self.static_pressure, static_pressure))
+            self.dynamic_pressure = np.vstack((self.static_pressure, dynamic_pressure))
+            self.velocity = np.vstack((self.velocity, H_fluid_mom))
 
         return dxdt
 
