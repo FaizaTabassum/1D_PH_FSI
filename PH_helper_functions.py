@@ -38,12 +38,12 @@ class BoundaryDefinitions:
         self.path_load = path_load
         self.out_max = out_max
         self.scale = 1*10**-6
+        self.tinp = 3 * 10 ** -3
+        self.inp_max = 100 * self.scale
 
     @property
     def inp_const(self):
-        inp_max = 100 * self.scale
-        tinp = 3*10**-3
-        return lambda t: (inp_max / 2) * (1 - np.cos(np.pi * t / tinp)) if t < tinp else inp_max
+        return lambda t: (self.inp_max / 2) * (1 - np.cos(np.pi * t / self.tinp)) if t < self.tinp else self.inp_max
 
     @property
     def load_input_file(self):
@@ -114,8 +114,7 @@ class BoundaryDefinitions:
 
     @property
     def out_const(self):
-        out = lambda t: self.out_max
-        return out
+        return lambda t: (self.out_max / 2) * (1 - np.cos(np.pi * t / self.tinp)) if t < self.tinp else self.out_max
 
 def get_parameter(radius, tube_length, number_sections, path_to_images,path_to_input, path_to_save, demo = False, simulation_time=1, min_pressure = 0, max_pressure = 0, scale = 1, pressure_title='', pressure_at_outlet=0):
     N_sec = number_sections
@@ -176,10 +175,12 @@ def run_simulation(radius, tube_length, number_sections, path_to_images,path_to_
 
     t_evaluation = np.ndarray.tolist(np.arange(0, simulation_time, sample_rate))
     parameter = {
+        'K_corr_exp': 113.5,
+        'K_corr_contr': 1,
         'min_pressure': min_pressure,
         'max_pressure': max_pressure,
         'geo_dissipation': True,
-        'geo_factor': 2.6,
+        'geo_factor': 4.5,
         'vis_factor': 16,
         'vis_dissipation': True,
         'inp_entrance': boundary_definition.inp_const,
@@ -275,8 +276,8 @@ class InputDefinitions:
                                  valfmt='%d', facecolor='#cc7000', valstep=1)
         self.tube_base_radius = Slider(ax=self.ax_r, label='radius ', valmin=0, valmax=5.0, valinit=1.0,
                                   valfmt=' %1.1f cm', facecolor='#cc7000')
-        self.tube_length = Slider(ax=self.ax_l, label='length ', valmin=0, valmax=10,
-                             valinit=10, valfmt='%1.1f cm', facecolor='#cc7000')
+        self.tube_length = Slider(ax=self.ax_l, label='length ', valmin=0, valmax=20,
+                             valinit=20, valfmt='%1.1f cm', facecolor='#cc7000')
         self.stenosis_position = Slider(ax=self.ax_s, label='stenosis position ', valmin=-5, valmax=5,
                                    valinit=0, valfmt=' %1.1f cm', facecolor='#cc7000')
         self.stenosis_radius_proportion = Slider(ax=self.ax_d, label='stenosis radius proportion ', valmin=-0.99, valmax=0.99,
@@ -353,9 +354,13 @@ class InputDefinitions:
         self.stenosis_position.valmax = self.tube_length.val / 2
         self.stenosis_expansion.valmax = self.tube_length.val
         xs = np.linspace(-self.tube_length.val / 2, self.tube_length.val / 2, int(self.number_sections.val))
+        xn = np.linspace(0, self.tube_length.val, int(self.number_sections.val)+1)
         absolute_stenosis_depth = self.tube_base_radius.val * self.stenosis_radius_proportion.val
         self.radius = self.tube_base_radius.val * np.ones(len(xs)) - absolute_stenosis_depth * np.exp(
             -0.5 * (xs - self.stenosis_position.val) ** 2 / self.stenosis_expansion.val ** 2)
+        radius_interp = self.tube_base_radius.val * np.ones(len(xn)) - absolute_stenosis_depth * np.exp(
+            -0.5 * (xn - self.stenosis_position.val) ** 2 / self.stenosis_expansion.val ** 2)
+        self.f = interp1d(xn, radius_interp*10**2)
         self.data_for_structure_along_z()
         self.ax.cla()
         self.ax.plot_surface(self.geometry[0], self.geometry[1], self.geometry[2])
@@ -422,18 +427,18 @@ class InputDefinitionsStraightExpansion:
 
         self.number_sections = Slider(ax=self.ax_number_sections, label='#sections ', valmin=10, valmax=200, valinit=100,
                                       valfmt='%d', facecolor='#cc7000', valstep=1)
-        self.tube_base_radius = Slider(ax=self.ax_straight_radius, label='radius ', valmin=0.1, valmax=5.0, valinit=1,
+        self.tube_base_radius = Slider(ax=self.ax_straight_radius, label='radius ', valmin=0.1, valmax=5.0, valinit=0.95,
                                        valfmt=' %1.1f cm', facecolor='#cc7000')
-        self.tube_length = Slider(ax=self.ax_structure_length, label='length ', valmin=0.1, valmax=20,
-                                  valinit=10.0, valfmt='%1.1f cm', facecolor='#cc7000')
+        self.tube_length = Slider(ax=self.ax_structure_length, label='length ', valmin=0.1, valmax=15,
+                                  valinit=15.0, valfmt='%1.1f cm', facecolor='#cc7000')
         self.point_start_expansion = Slider(ax=self.ax_point_start_expansion, label='start expansion ', valmin=0.1, valmax=19.9,
                                         valinit=4.0, valfmt=' %1.1f cm', facecolor='#cc7000')
         self.point_end_expansion = Slider(ax=self.ax_point_end_expansion, label='start expansion ', valmin=0.1,
                                             valmax=19.9,
-                                            valinit=7.0, valfmt=' %1.1f cm', facecolor='#cc7000')
-        self.expansion_angle = Slider(ax=self.ax_angle, label='expansion angle ', valmin=0,
+                                            valinit=9.0, valfmt=' %1.1f cm', facecolor='#cc7000')
+        self.expansion_angle = Slider(ax=self.ax_angle, label='expansion angle ', valmin=-70,
                                                  valmax=70,
-                                                 valinit=1, valfmt=' %1.1f cm', facecolor='#cc7000')
+                                                 valinit=- 2.2906100426385296, valfmt=' %1.1f cm', facecolor='#cc7000')
         self.transition_window = Slider(ax=self.ax_window, label='transition window ',valmin=0.1, valmax=20, valinit=0.1,valfmt=' %1.1f cm', facecolor='#cc7000')
         self.play_button = Button(ax=self.ax_start_button, label='', image=ICON_PLAY)
         self.load_button = Button(ax=self.ax_load_button, label="", image=ICON_LOAD)
@@ -518,9 +523,14 @@ class InputDefinitionsStraightExpansion:
 
         x = np.hstack((xstraight_entrance, xtrans_entrance, xexp, xtrans_exit, xstraight_exit))
         y = np.hstack((ystraight_entrance, ytrans_entrance, yexp, ytrans_exit, ystraight_exit))
+        number = np.arange(0, len(x),1)
+        number_y = [(number[i], y[i]) for i in range(0, len(x),1)]
+        number_x = [(number[i], x[i]) for i in range(0, len(x),1)]
         plt.figure()
         plt.plot(x, y)
-        f = interp1d(x, y)
+        print(number_x)
+        print((number_y))
+        self.f = f = interp1d(x, y)
 
         x = np.linspace(0, self.tube_length.val, self.number_sections.val)
         self.radius = f(x)
@@ -627,6 +637,8 @@ class InputDefinitionsStraightExpansion:
 
 class OneD_PHM:
     def __init__(self,pdic, demo = False, path_to_image = ''):
+        self.K_correction_expansion = pdic['K_corr_exp']
+        self.K_correction_contraction = pdic['K_corr_contr']
         self.radius = pdic['radius']
         self.am1_0_vol = 1
         self.am1_0_pd = 1
@@ -809,12 +821,22 @@ class OneD_PHM:
         for k in range(0, self.N_sec - 1, 1):
             if A_cross[k] <= A_cross[k + 1]:
                 angle = np.arctan((self.radius[k + 1] - self.radius[k]) / self.section_length)
-                if math.degrees(angle) <= 45:
-                    loss_g[k] = (np.sin(angle / 2) * (1 - (self.radius[k] / self.radius[k + 1]) ** 2) ** 2)
-                else:
-                    loss_g[k] = (1 - (A_cross[k] / A_cross[k + 1])) ** 2
+                loss_g[k] =  self.K_correction_contraction*(1 - (A_cross[k] / A_cross[k+1]))**2*2.6*np.sin(np.abs(angle)/2)
+                # loss_g[k] = (1-(A_cross[k+1]/A_cross[k]))**2*2.6*np.sin(angle/2)
+
+                # loss_g[k] = 0.45*(1-(A_cross[k+1]/A_cross[k]))**1*2.6*np.sin(np.abs(angle)/2)
+                # loss_g[k] = 103 * 0.5 * (1 - (A_cross[k + 1] / A_cross[k])) * 1.8*np.sin(np.abs(angle) / 2)
             else:
-                loss_g[k] = 0.5 * (1 - (A_cross[k + 1] / A_cross[k]))
+                angle = np.arctan((self.radius[k + 1] - self.radius[k]) / self.section_length)
+                if angle!=0:
+                    loss_g[k] =0.5*(((A_cross[k]-A_cross[k + 1])/(A_cross[k])))**1
+                    # *self.section_length / (self.radius[k] - self.radius[k + 1])
+                    # print(self.section_length/(self.radius[k]-self.radius[k+1]))
+                else:
+                    loss_g[k] = 0
+                # loss_g[k] = 0.5*(1-(A_cross[k+1]/A_cross[k]))**0.75*1.6*np.sin(np.abs(angle)/2)
+
+                # loss_g[k] = self.K_correction_contraction*(np.pi*self.section_length*(self.radius[k+1]+self.radius[k]))/(np.cos(angle))
         loss_g[-1] = 0
         loss_g = self.geo_dissipation_factor * loss_g
 
@@ -878,6 +900,7 @@ class OneD_PHM:
         y = np.dot(g_P.T, x_vec)
 
         if t > self.step_time[-1]:
+            print(t)
             self.step_time = np.vstack((self.step_time, t))
             self.pressure_at_0 = np.vstack((self.pressure_at_0, static_pressure[0] + dynamic_pressure[0]))
             self.total_pressure = np.vstack((self.total_pressure, static_pressure+dynamic_pressure))

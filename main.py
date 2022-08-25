@@ -44,7 +44,7 @@ def save_data(input_definition):
 if __name__ == '__main__':
     path_to_image =[r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\heart_front', r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images\heart_side', r'C:\Users\Faiza\Desktop\1D_PH_FSI\Images'] #please change the path to Images\heart_front, Images_heart_side and Images
     simulation_time=3 #please define time of one heart beat
-    pressure_outlet =0 #please define pressure at outlet
+    pressure_outlet =1000 #please define pressure at outlet
     scale = 1 #1 for Pa or 0.00750062 if you want to plot pressure in mmHg
     pressure_title="Druck [mmHg]" #change title accordingly to scale
 
@@ -52,13 +52,25 @@ if __name__ == '__main__':
     save_data(input_definition)
 
     parameter_dic, internal_information_of_model, results_integration = func.run_simulation(input_definition.tube_base_radius, input_definition.tube_length, int(input_definition.number_sections), path_to_image,simulation_time = simulation_time,path_to_input=input_definition.flow_profile_path,path_to_save=input_definition.save_data_path, scale = scale, pressure_title=pressure_title, pressure_at_outlet=pressure_outlet)
+    x = np.linspace(0, parameter_dic['structure_length']*10**2, parameter_dic['N_sec']+1)
+    radius = input_definition.f(x)
+    z = np.linspace(0, parameter_dic['structure_length']*10**2, parameter_dic['N_sec']+1)
+    pressures = np.append(internal_information_of_model.static_pressure[-1,:], pressure_outlet)
+    velocities = np.append(internal_information_of_model.velocity[-1,:], internal_information_of_model.velocity[-1,-1])
+    test = np.vstack((z, pressures, velocities, radius))
+
+    with open(r'C:\Users\Faiza\Desktop\1D_PH_FSI\results\results_twenty_onepfive_mfiveseven_five.npy', 'wb') as f:
+        pickle.dump(test, f)
+
     plt.figure()
     plt.title('Radius')
     plt.plot(np.linspace(0, parameter_dic['structure_length'], parameter_dic['N_sec']), input_definition.tube_base_radius)
     print('pressure at inlet: ',  parameter_dic['interpolated_data'](parameter_dic['t_evaluation'][-1])[0])
+
+
     plt.figure()
     plt.title('Pressure')
-    plt.plot(np.linspace(0, parameter_dic['structure_length'], parameter_dic['N_sec']), internal_information_of_model.total_pressure[-1,:])
+    plt.plot(np.linspace(0, parameter_dic['structure_length'], parameter_dic['N_sec']), internal_information_of_model.static_pressure[-1,:])
     plt.figure()
     plt.title('velocity')
     plt.plot(np.linspace(0, parameter_dic['structure_length'], parameter_dic['N_sec']),
