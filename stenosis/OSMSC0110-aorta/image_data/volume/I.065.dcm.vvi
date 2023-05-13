@@ -1,0 +1,13 @@
+<KWOpenFileProperties Version="1.5"
+                      ClassName="vtkKWOpenFileProperties"
+                      Spacing="0.78125 2 0.78125"
+                      Origin="-196 -74.8 -229.5"
+                      DistanceUnits="mm"
+                      ScalarType="4"
+                      WholeExtent="0 511 0 63 0 511"
+                      NumberOfScalarComponents="1"
+                      IndependentComponents="1"
+                      FileOrientation="4 2 0"
+                      BigEndianFlag="0"
+                      FileDimensionality="2"
+                      Scope="1"/>

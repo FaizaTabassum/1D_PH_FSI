@@ -1,0 +1,43 @@
+# Magnitude images
+
+magnitude_slice	frame	1	file	I.019.dcm	name	/pcdata/mag/1
+magnitude_slice	frame	2	file	I.020.dcm	name	/pcdata/mag/2
+magnitude_slice	frame	3	file	I.021.dcm	name	/pcdata/mag/3
+magnitude_slice	frame	4	file	I.022.dcm	name	/pcdata/mag/4
+magnitude_slice	frame	5	file	I.023.dcm	name	/pcdata/mag/5
+magnitude_slice	frame	6	file	I.024.dcm	name	/pcdata/mag/6
+magnitude_slice	frame	7	file	I.025.dcm	name	/pcdata/mag/7
+magnitude_slice	frame	8	file	I.026.dcm	name	/pcdata/mag/8
+magnitude_slice	frame	9	file	I.027.dcm	name	/pcdata/mag/9
+magnitude_slice	frame	10	file	I.028.dcm	name	/pcdata/mag/10
+magnitude_slice	frame	11	file	I.029.dcm	name	/pcdata/mag/11
+magnitude_slice	frame	12	file	I.030.dcm	name	/pcdata/mag/12
+magnitude_slice	frame	13	file	I.031.dcm	name	/pcdata/mag/13
+magnitude_slice	frame	14	file	I.032.dcm	name	/pcdata/mag/14
+magnitude_slice	frame	15	file	I.033.dcm	name	/pcdata/mag/15
+magnitude_slice	frame	16	file	I.034.dcm	name	/pcdata/mag/16
+magnitude_slice	frame	17	file	I.035.dcm	name	/pcdata/mag/17
+magnitude_slice	frame	18	file	I.036.dcm	name	/pcdata/mag/18
+
+# Through-plane only images
+
+# Phase images
+
+phase_image_frame	1	file	I.001.dcm	phase	/pcdata/phase/1	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/1	velocity_result	/pcdata/vel/1
+phase_image_frame	2	file	I.002.dcm	phase	/pcdata/phase/2	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/2	velocity_result	/pcdata/vel/2
+phase_image_frame	3	file	I.003.dcm	phase	/pcdata/phase/3	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/3	velocity_result	/pcdata/vel/3
+phase_image_frame	4	file	I.004.dcm	phase	/pcdata/phase/4	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/4	velocity_result	/pcdata/vel/4
+phase_image_frame	5	file	I.005.dcm	phase	/pcdata/phase/5	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/5	velocity_result	/pcdata/vel/5
+phase_image_frame	6	file	I.006.dcm	phase	/pcdata/phase/6	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/6	velocity_result	/pcdata/vel/6
+phase_image_frame	7	file	I.007.dcm	phase	/pcdata/phase/7	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/7	velocity_result	/pcdata/vel/7
+phase_image_frame	8	file	I.008.dcm	phase	/pcdata/phase/8	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/8	velocity_result	/pcdata/vel/8
+phase_image_frame	9	file	I.009.dcm	phase	/pcdata/phase/9	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/9	velocity_result	/pcdata/vel/9
+phase_image_frame	10	file	I.010.dcm	phase	/pcdata/phase/10	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/10	velocity_result	/pcdata/vel/10
+phase_image_frame	11	file	I.011.dcm	phase	/pcdata/phase/11	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/11	velocity_result	/pcdata/vel/11
+phase_image_frame	12	file	I.012.dcm	phase	/pcdata/phase/12	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/12	velocity_result	/pcdata/vel/12
+phase_image_frame	13	file	I.013.dcm	phase	/pcdata/phase/13	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/13	velocity_result	/pcdata/vel/13
+phase_image_frame	14	file	I.014.dcm	phase	/pcdata/phase/14	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/14	velocity_result	/pcdata/vel/14
+phase_image_frame	15	file	I.015.dcm	phase	/pcdata/phase/15	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/15	velocity_result	/pcdata/vel/15
+phase_image_frame	16	file	I.016.dcm	phase	/pcdata/phase/16	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/16	velocity_result	/pcdata/vel/16
+phase_image_frame	17	file	I.017.dcm	phase	/pcdata/phase/17	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/17	velocity_result	/pcdata/vel/17
+phase_image_frame	18	file	I.018.dcm	phase	/pcdata/phase/18	venc	1500	vencscale	2.38732000	_mag_weight_flag	26	mag	/pcdata/mag/18	velocity_result	/pcdata/vel/18
